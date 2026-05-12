@@ -1,0 +1,31 @@
+﻿Nodo,Año,Visitantes,Ingresos (M COP),Gasto Promedio (COP),Ocupación Hotelera (%),Empleos Temporales,Precio Hospedaje (COP),Media,Mediana,Desv. Estándar,CV (%),Procedencia Moda,Fuente
+Parque de la Leyenda,2021,12000,1800,150000,35,180,120000,35645.62,1350.0,61971.49,173.85,Cesar,"Estimación basada en formato híbrido COVID-19 (El Pilón, 2021)"
+Parque de la Leyenda,2022,55000,5500,180000,65,420,180000,53054.38,4150.0,80485.63,151.7,Bogotá,CC Valledupar - Balance Festival 55° (2022); Semanario La Calle
+Parque de la Leyenda,2023,72000,7200,200000,79,580,220000,63038.62,5400.0,94005.26,149.12,Bogotá,CC Valledupar - Observatorio Socioeconómico (2023)
+Parque de la Leyenda,2024,80000,8200,220000,79,650,280000,74259.88,6150.0,112864.87,151.99,Bogotá,CC Valledupar - Balance 57° Festival (2024); Semana
+Parque de la Leyenda,2025,85000,8500,240000,88,720,350000,86251.0,6500.0,135174.8,156.72,Bogotá,CC Valledupar - Balance 58° Festival (2025); RTA Noticias
+Parque de la Leyenda,2026,95000,9800,260000,87,810,400000,96549.62,7500.0,152210.55,157.65,Bogotá,CC Valledupar - Balance 59° Festival (2026); Pulzo; valledupar-cesar.gov.co
+Plaza Alfonso López,2021,8000,400,50000,35,120,120000,22366.88,350.0,43031.64,192.39,Cesar,"Estimación - Restricciones COVID-19 (CC Valledupar, 2021)"
+Plaza Alfonso López,2022,65000,1200,65000,65,350,180000,39076.88,1000.0,63960.07,163.68,Cesar,CC Valledupar - Balance 55° Festival (2022)
+Plaza Alfonso López,2023,150000,2200,70000,79,500,220000,55578.62,1850.0,85436.36,153.72,Cesar,"CC Valledupar - Expofestival 2023: 150,000 visitantes"
+Plaza Alfonso López,2024,160000,2600,75000,79,600,280000,65062.38,2200.0,104040.27,159.91,Bogotá,"CC Valledupar - Expofestival 2024: 420 stands, $630M ventas"
+Plaza Alfonso López,2025,140000,2500,80000,88,550,350000,71904.75,2100.0,123720.46,172.06,Bogotá,"CC Valledupar - Expofestival 2025: 288 emprendimientos, 120,000 visitantes"
+Plaza Alfonso López,2026,170000,3100,85000,87,680,400000,82695.88,2650.0,142142.44,171.89,Bogotá,"CC Valledupar / Pulzo - Economía popular 2026: ~$3,100M"
+Balneario Hurtado,2021,5000,200,40000,35,80,120000,20688.12,175.0,42428.23,205.08,Cesar,Estimación - Restricciones COVID-19 y acceso limitado
+Balneario Hurtado,2022,35000,800,45000,65,200,180000,32710.62,650.0,62210.55,190.18,Cesar,CC Valledupar - Reactivación economía popular (2022)
+Balneario Hurtado,2023,50000,1200,50000,79,300,220000,40319.88,1000.0,75966.79,188.41,Cesar,CC Valledupar - Balance economía informal (2023)
+Balneario Hurtado,2024,58000,1500,55000,79,350,280000,49518.62,1250.0,96492.54,194.86,Cesar,CC Valledupar - Balance 57° Festival (2024)
+Balneario Hurtado,2025,62000,1700,60000,88,380,350000,59441.0,1400.0,120524.13,202.76,Bogotá,CC Valledupar - Balance 58° Festival (2025)
+Balneario Hurtado,2026,70000,2000,65000,87,420,400000,67403.38,1700.0,137729.3,204.34,Bogotá,CC Valledupar - Balance 59° Festival (2026)
+Desfile de Piloneras,2021,3000,150,50000,35,60,120000,21671.88,125.0,43345.25,200.01,Cesar,Estimación - Evento cancelado/virtual por pandemia (2021)
+Desfile de Piloneras,2022,40000,600,55000,65,180,180000,34543.12,500.0,62655.23,181.38,Cesar,CC Valledupar - Retorno presencial Desfile de Piloneras (2022)
+Desfile de Piloneras,2023,60000,1000,60000,79,280,220000,42769.88,825.0,76501.57,178.87,Bogotá,CC Valledupar - Observatorio Socioeconómico (2023)
+Desfile de Piloneras,2024,70000,1300,65000,79,320,280000,52218.62,1075.0,96889.69,185.55,Bogotá,CC Valledupar - Balance 57° Festival (2024)
+Desfile de Piloneras,2025,75000,1500,70000,88,350,350000,62273.5,1250.0,120714.85,193.85,Bogotá,CC Valledupar - Balance 58° Festival (2025)
+Desfile de Piloneras,2026,85000,1800,75000,87,400,400000,70473.38,1500.0,137904.19,195.68,Bogotá,El Pilón / Pulzo - Desfile por Cra 9 en 2026 por obras
+Feria Ganadera,2021,2000,500,250000,35,50,120000,46630.62,450.0,92202.49,197.73,Cesar,Estimación - Feria limitada por pandemia (2021)
+Feria Ganadera,2022,15000,3500,300000,65,150,180000,62695.62,3000.0,114141.34,182.06,Cesar,CC Valledupar - Reactivación sector agropecuario (2022)
+Feria Ganadera,2023,22000,5000,350000,79,200,220000,75159.88,4250.0,134286.2,178.67,Cesar,CC Valledupar - Observatorio Socioeconómico (2023)
+Feria Ganadera,2024,26000,6000,380000,79,250,280000,87141.12,5100.0,152494.25,175.0,Cesar,CC Valledupar - Balance 57° Festival (2024)
+Feria Ganadera,2025,28000,6500,400000,88,280,350000,98771.0,5550.0,171256.83,173.39,Bogotá,"CC Valledupar / El Pilón - Cabalgata genera >$3,000M (2025)"
+Feria Ganadera,2026,32000,7500,420000,87,320,400000,108257.12,6400.0,186605.9,172.37,Bogotá,CC Valledupar - Balance 59° Festival (2026); Caracol Radio

@@ -1,0 +1,865 @@
+# -*- coding: utf-8 -*-
+"""
+============================================================================
+MAPA INTERACTIVO ENRIQUECIDO - DIGITAL TWIN FESTIVAL VALLENATO 2026
+============================================================================
+Genera mapa de Valledupar con popups HTML enriquecidos que incluyen:
+- Fotografía real del lugar (Wikimedia Commons)
+- Estadísticas descriptivas calculadas
+- Indicadores con iconos y colores
+- Mini barras de progreso para métricas clave
+- Datos reales con fuentes citadas
+============================================================================
+"""
+
+import folium
+from folium.plugins import MiniMap, Fullscreen, LocateControl
+import os
+from data.datos_festival import DATOS, NODOS_COORDENADAS, ANIOS, NODOS, DATOS_AGREGADOS
+from estadistica.descriptiva import calcular_estadisticas_nodo, calcular_estadisticas_serie_temporal
+
+
+COLORES_FOLIUM = {
+    "Parque de la Leyenda": "red",
+    "Plaza Alfonso López": "blue",
+    "Balneario Hurtado": "green",
+    "Desfile de Piloneras": "orange",
+    "Feria Ganadera": "darkred"
+}
+
+ICONOS_FOLIUM = {
+    "Parque de la Leyenda": "music",
+    "Plaza Alfonso López": "university",
+    "Balneario Hurtado": "tint",
+    "Desfile de Piloneras": "street-view",
+    "Feria Ganadera": "leaf"
+}
+
+# Emojis por nodo
+EMOJIS = {
+    "Parque de la Leyenda": "🎵",
+    "Plaza Alfonso López": "🏛️",
+    "Balneario Hurtado": "🌊",
+    "Desfile de Piloneras": "💃",
+    "Feria Ganadera": "🐄"
+}
+
+# Colores CSS por nodo — paleta suave y amigable
+COLORES_CSS = {
+    "Parque de la Leyenda": "#e07065",
+    "Plaza Alfonso López": "#5b9bd5",
+    "Balneario Hurtado": "#43b581",
+    "Desfile de Piloneras": "#e8a838",
+    "Feria Ganadera": "#9b7dc9"
+}
+
+# Fondos suaves por nodo
+COLORES_BG = {
+    "Parque de la Leyenda": "#fdf0ef",
+    "Plaza Alfonso López": "#edf4fb",
+    "Balneario Hurtado": "#edf8f3",
+    "Desfile de Piloneras": "#fef6e8",
+    "Feria Ganadera": "#f5f0fa"
+}
+
+
+def _barra_progreso(valor, maximo, color="#43b581", label=""):
+    """Genera HTML de una mini barra de progreso — estilo limpio."""
+    pct = min(100, (valor / maximo) * 100) if maximo > 0 else 0
+    return f'''
+    <div style="margin:4px 0;">
+        <div style="display:flex; justify-content:space-between; font-size:11px; color:#718096;">
+            <span>{label}</span><span style="color:{color}; font-weight:600;">{valor:,.0f}</span>
+        </div>
+        <div style="background:#edf2f7; border-radius:6px; height:7px; overflow:hidden;">
+            <div style="background:{color}; width:{pct:.1f}%;
+                        height:100%; border-radius:6px; transition:width 0.5s;"></div>
+        </div>
+    </div>'''
+
+
+def _calcular_crecimiento(nodo, variable="ingresos_millones"):
+    """Calcula el crecimiento porcentual 2025→2026."""
+    v25 = DATOS[nodo][2025][variable]
+    v26 = DATOS[nodo][2026][variable]
+    if v25 > 0:
+        return ((v26 - v25) / v25) * 100
+    return 0
+
+
+def crear_popup_html(nodo, anio):
+    """Crea popup HTML enriquecido — diseño limpio, colores suaves y amigables."""
+    datos = DATOS[nodo][anio]
+    est = calcular_estadisticas_nodo(nodo, anio)
+    info = NODOS_COORDENADAS[nodo]
+    color = COLORES_CSS[nodo]
+    color_bg = COLORES_BG[nodo]
+    emoji = EMOJIS[nodo]
+
+    # Foto del lugar
+    foto_url = info.get("foto", "")
+    foto_html = ""
+    if foto_url:
+        foto_html = f'''
+        <div style="width:100%; height:140px; overflow:hidden; position:relative;">
+            <img src="{foto_url}" alt="{nodo}" title="Clic para expandir"
+                 style="width:100%; height:140px; object-fit:cover; cursor:pointer;"
+                 onclick="window.parent.postMessage({{type: 'openLightbox', url: '{foto_url}'}}, '*'); window.openLightbox && window.openLightbox('{foto_url}')"
+                 onerror="this.style.display='none'"/>
+        </div>'''
+
+    # Crecimiento
+    crec_ingresos = _calcular_crecimiento(nodo, "ingresos_millones")
+    crec_visitantes = _calcular_crecimiento(nodo, "visitantes")
+    crec_color_i = "#43b581" if crec_ingresos >= 0 else "#e07065"
+    crec_color_v = "#43b581" if crec_visitantes >= 0 else "#e07065"
+    crec_arrow_i = "▲" if crec_ingresos >= 0 else "▼"
+    crec_arrow_v = "▲" if crec_visitantes >= 0 else "▼"
+
+    # Serie temporal para mini sparkline
+    ingresos_serie = [DATOS[nodo][a]["ingresos_millones"] for a in ANIOS]
+    max_ingreso = max(ingresos_serie) if ingresos_serie else 1
+
+    # Barras de serie temporal
+    sparkline_html = '<div style="display:flex; align-items:flex-end; gap:3px; height:32px; margin:6px 0;">'
+    for i, (a, v) in enumerate(zip(ANIOS, ingresos_serie)):
+        h = max(3, (v / max_ingreso) * 28)
+        bar_color = color if a == anio else f"{color}40"
+        border = f"border:1px solid {color};" if a == anio else ""
+        sparkline_html += f'<div title="{a}: ${v:,}M" style="flex:1; height:{h}px; background:{bar_color}; border-radius:3px; {border}"></div>'
+    sparkline_html += '</div>'
+    sparkline_html += '<div style="display:flex; justify-content:space-between; font-size:9px; color:#a0aec0;"><span>2021</span><span>2026</span></div>'
+
+    # Estadísticas de serie temporal
+    st = calcular_estadisticas_serie_temporal(nodo, "ingresos_millones")
+
+    html = f"""
+    <div style="width:400px; font-family:'Segoe UI',Arial,sans-serif;
+                background:#ffffff; color:#2d3748; border-radius:16px; padding:0; overflow:hidden;
+                box-shadow:0 4px 20px rgba(0,0,0,0.10); border:1px solid #e2e8f0;">
+
+        <div style="background:{color}; padding:12px 16px; color:white;">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <span style="font-size:24px; filter:drop-shadow(0 1px 2px rgba(0,0,0,0.15));">{emoji}</span>
+                <div>
+                    <h3 style="margin:0; font-size:15px; font-weight:700; line-height:1.2; color:#fff;">
+                        {nodo}
+                    </h3>
+                    <p style="margin:2px 0 0; font-size:10px; opacity:0.9;">
+                        {info['descripcion']}
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        {foto_html}
+
+        <div style="padding:14px 16px 16px;">
+
+        <div style="display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap;">
+            <span style="background:{color_bg}; color:{color}; padding:3px 10px;
+                         border-radius:20px; font-size:10px; font-weight:600;
+                         border:1px solid {color}33;">
+                📅 {anio}
+            </span>
+            <span style="background:#edf8f3; color:#43b581; padding:3px 10px;
+                         border-radius:20px; font-size:10px; font-weight:600;
+                         border:1px solid #43b58133;">
+                📍 {info.get('direccion', '')}
+            </span>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;">
+            <div style="background:#f8fafb; padding:10px; border-radius:10px; text-align:center;
+                        border:1px solid #e2e8f0;">
+                <div style="font-size:10px; color:#a0aec0; font-weight:500;">👥 Visitantes</div>
+                <div style="font-size:18px; font-weight:700; color:#43b581; margin:2px 0;">
+                    {datos['visitantes']:,}
+                </div>
+                <div style="font-size:9px; color:{crec_color_v}; font-weight:600;">
+                    {crec_arrow_v} {abs(crec_visitantes):.1f}% vs 2025
+                </div>
+            </div>
+            <div style="background:#f8fafb; padding:10px; border-radius:10px; text-align:center;
+                        border:1px solid #e2e8f0;">
+                <div style="font-size:10px; color:#a0aec0; font-weight:500;">💰 Ingresos</div>
+                <div style="font-size:18px; font-weight:700; color:{color}; margin:2px 0;">
+                    ${datos['ingresos_millones']:,}M
+                </div>
+                <div style="font-size:9px; color:{crec_color_i}; font-weight:600;">
+                    {crec_arrow_i} {abs(crec_ingresos):.1f}% vs 2025
+                </div>
+            </div>
+        </div>
+
+        <table style="width:100%; border-collapse:collapse; font-size:11px; margin-bottom:10px;">
+            <tr style="background:#f8fafb;">
+                <td style="padding:6px 10px; border-bottom:1px solid #edf2f7; color:#718096;">
+                    🛒 Gasto Promedio</td>
+                <td style="padding:6px 8px; border-bottom:1px solid #edf2f7;
+                    text-align:right; font-weight:600; color:#e8a838;">
+                    ${datos['gasto_promedio']:,}</td>
+            </tr>
+            <tr>
+                <td style="padding:6px 10px; border-bottom:1px solid #edf2f7; color:#718096;">
+                    🏨 Ocupación Hotelera</td>
+                <td style="padding:6px 8px; border-bottom:1px solid #edf2f7;
+                    text-align:right; font-weight:600; color:#2d3748;">
+                    {datos['ocupacion_hotelera']}%</td>
+            </tr>
+            <tr style="background:#f8fafb;">
+                <td style="padding:6px 10px; border-bottom:1px solid #edf2f7; color:#718096;">
+                    👷 Empleos Temporales</td>
+                <td style="padding:6px 8px; border-bottom:1px solid #edf2f7;
+                    text-align:right; font-weight:600; color:#5b9bd5;">
+                    {datos['empleos_temporales']}</td>
+            </tr>
+            <tr>
+                <td style="padding:6px 10px; border-bottom:1px solid #edf2f7; color:#718096;">
+                    🌎 Procedencia (Moda)</td>
+                <td style="padding:6px 8px; border-bottom:1px solid #edf2f7;
+                    text-align:right; font-weight:600; color:#2d3748;">{datos['procedencia_moda']}</td>
+            </tr>
+            <tr style="background:#f8fafb;">
+                <td style="padding:6px 10px; border-bottom:1px solid #edf2f7; color:#718096;">
+                    💵 Precio Hospedaje</td>
+                <td style="padding:6px 8px; border-bottom:1px solid #edf2f7;
+                    text-align:right; font-weight:600; color:#2d3748;">${datos['precio_hospedaje_promedio']:,}/noche</td>
+            </tr>
+        </table>
+
+        <div style="background:#f8fafb; border-radius:10px; padding:10px; margin-bottom:10px;
+                    border:1px solid #e2e8f0;">
+            <div style="font-size:10px; color:{color}; font-weight:600; margin-bottom:4px;">
+                📊 Evolución Ingresos 2021-2026
+            </div>
+            {sparkline_html}
+        </div>
+
+        <div style="background:#f8fafb; border-radius:10px; padding:10px; margin-bottom:8px;
+                    border:1px solid #e2e8f0;">
+            <div style="font-size:10px; color:#e07065; font-weight:600; margin-bottom:4px;">
+                📈 Estadísticas Descriptivas
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:2px; font-size:10px; color:#4a5568;">
+                <div>Media: <b style="color:#e8a838;">{est['media']:,.0f}</b></div>
+                <div>Mediana: <b style="color:#5b9bd5;">{est['mediana']:,.0f}</b></div>
+                <div>Desv. Std: <b style="color:#e07065;">{est['desviacion_std']:,.0f}</b></div>
+                <div>CV: <b style="color:#9b7dc9;">{est['coeficiente_variacion']:.1f}%</b></div>
+            </div>
+            <div style="margin-top:4px; font-size:10px; color:#4a5568;">
+                Crecimiento anual prom: <b style="color:#43b581;">{st['tasa_crecimiento_anual']:.1f}%</b>
+            </div>
+        </div>
+
+        {_barra_progreso(datos['visitantes'], 170000, "#43b581", "Visitantes (vs Plaza máx)")}
+        {_barra_progreso(datos['ingresos_millones'], 10000, "#e8a838", "Ingresos (vs $10,000M meta)")}
+        {_barra_progreso(datos['ocupacion_hotelera'], 100, "#5b9bd5", "Ocupación hotelera (%)")}
+
+        <p style="margin:8px 0 0; font-size:8px; color:#a0aec0; font-style:italic; line-height:1.3;">
+            📌 {datos['fuente']}<br>
+            🗺️ Coords: {info['lat']:.6f}°N, {abs(info['lon']):.6f}°W
+        </p>
+
+        </div>
+    </div>
+    """
+    return html
+
+
+def generar_mapa_interactivo(output_dir="output"):
+    """Genera mapa interactivo premium de Valledupar con los 5 nodos."""
+
+    # Centro de Valledupar (ajustado para que todos los nodos se vean)
+    centro_lat = 10.4830
+    centro_lon = -73.2560
+
+    mapa = folium.Map(
+        location=[centro_lat, centro_lon],
+        zoom_start=14,
+        tiles=None,
+        control_scale=True
+    )
+
+    # Capas base
+    folium.TileLayer(
+        tiles='https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+        attr='&copy; CartoDB',
+        name='🌙 Mapa Oscuro',
+        control=True
+    ).add_to(mapa)
+
+    folium.TileLayer(
+        tiles='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        attr='&copy; OpenStreetMap',
+        name='🗺️ Mapa Estándar',
+        control=True
+    ).add_to(mapa)
+
+    folium.TileLayer(
+        tiles='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        attr='&copy; Esri',
+        name='🛰️ Satélite',
+        control=True
+    ).add_to(mapa)
+
+    # Título
+    titulo_html = """
+    <div style="position:fixed; top:10px; left:50%; transform:translateX(-50%);
+                z-index:9999; background:rgba(255,255,255,0.95);
+                padding:14px 30px; border-radius:14px; border:1px solid #e2e8f0;
+                box-shadow:0 4px 20px rgba(0,0,0,0.10); backdrop-filter:blur(8px);">
+        <h3 style="margin:0; color:#2d3748; font-family:'Segoe UI',sans-serif;
+                   font-size:17px; text-align:center; letter-spacing:0.3px;">
+            🎵 Digital Twin Económico – Festival Vallenato 2026
+        </h3>
+        <p style="margin:4px 0 0; color:#718096; font-size:11px; text-align:center;">
+            59ª Edición | Haga clic en cada nodo para ver datos reales |
+            Seleccione el año en ➡️
+        </p>
+    </div>
+    """
+    mapa.get_root().html.add_child(folium.Element(titulo_html))
+
+    # FeatureGroup por año
+    for anio in ANIOS:
+        grupo = folium.FeatureGroup(name=f"📅 Año {anio}", show=(anio == 2026))
+
+        for nodo in NODOS:
+            coord = NODOS_COORDENADAS[nodo]
+            datos = DATOS[nodo][anio]
+
+            radio = max(10, min(30, datos["ingresos_millones"] / 400))
+
+            popup_html = crear_popup_html(nodo, anio)
+            popup = folium.Popup(popup_html, max_width=440)
+
+            tooltip = (f"{EMOJIS[nodo]} {nodo} ({anio})\n"
+                       f"💰 ${datos['ingresos_millones']:,}M COP\n"
+                       f"👥 {datos['visitantes']:,} visitantes")
+
+            folium.Marker(
+                location=[coord["lat"], coord["lon"]],
+                popup=popup,
+                tooltip=tooltip,
+                icon=folium.Icon(
+                    color=COLORES_FOLIUM[nodo],
+                    icon=ICONOS_FOLIUM[nodo],
+                    prefix='fa'
+                )
+            ).add_to(grupo)
+
+            folium.CircleMarker(
+                location=[coord["lat"], coord["lon"]],
+                radius=radio,
+                color=COLORES_CSS[nodo],
+                fill=True,
+                fill_color=COLORES_CSS[nodo],
+                fill_opacity=0.25,
+                weight=2,
+                opacity=0.6
+            ).add_to(grupo)
+
+        grupo.add_to(mapa)
+
+    # Controles
+    folium.LayerControl(collapsed=False).add_to(mapa)
+
+    # Minimapa
+    MiniMap(tile_layer=folium.TileLayer(
+        tiles='https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+        attr='CartoDB'
+    ), toggle_display=True, position='bottomright').add_to(mapa)
+
+    # Pantalla completa
+    Fullscreen(position='topright').add_to(mapa)
+
+    # Leyenda + Navegador de nodos interactivo
+    total_2026 = DATOS_AGREGADOS[2026]
+
+    # Generar coordenadas JS para fly-to
+    nodos_js_data = ""
+    for nodo in NODOS:
+        coord = NODOS_COORDENADAS[nodo]
+        nodos_js_data += f'  "{nodo}": {{lat: {coord["lat"]}, lon: {coord["lon"]}}},\n'
+
+    leyenda_html = f"""
+    <div id="nodoNavigator" style="position:fixed; bottom:30px; left:10px; z-index:9999;
+                background:rgba(255,255,255,0.95); backdrop-filter:blur(8px);
+                padding:14px 16px; border-radius:14px; border:1px solid #e2e8f0;
+                font-family:'Segoe UI',sans-serif; color:#2d3748; font-size:11px;
+                box-shadow:0 4px 16px rgba(0,0,0,0.08); max-width:220px;">
+        <div style="color:#43b581; font-weight:700; font-size:12px; margin-bottom:8px;
+                    border-bottom:1px solid #e2e8f0; padding-bottom:6px;">
+            📌 Ir a Nodo Económico
+        </div>
+        <div class="nodo-btn" onclick="flyToNodo('Parque de la Leyenda')" style="margin-bottom:4px; padding:5px 8px; border-radius:8px; cursor:pointer; transition:background 0.2s; display:flex; align-items:center; gap:6px;"
+             onmouseover="this.style.background='#fdf0ef'" onmouseout="this.style.background='transparent'">
+            <span style="color:#e07065; font-size:14px;">●</span> <span>🎵 Parque de la Leyenda</span>
+        </div>
+        <div class="nodo-btn" onclick="flyToNodo('Plaza Alfonso López')" style="margin-bottom:4px; padding:5px 8px; border-radius:8px; cursor:pointer; transition:background 0.2s; display:flex; align-items:center; gap:6px;"
+             onmouseover="this.style.background='#edf4fb'" onmouseout="this.style.background='transparent'">
+            <span style="color:#5b9bd5; font-size:14px;">●</span> <span>🏛️ Plaza Alfonso López</span>
+        </div>
+        <div class="nodo-btn" onclick="flyToNodo('Balneario Hurtado')" style="margin-bottom:4px; padding:5px 8px; border-radius:8px; cursor:pointer; transition:background 0.2s; display:flex; align-items:center; gap:6px;"
+             onmouseover="this.style.background='#edf8f3'" onmouseout="this.style.background='transparent'">
+            <span style="color:#43b581; font-size:14px;">●</span> <span>🌊 Balneario Hurtado</span>
+        </div>
+        <div class="nodo-btn" onclick="flyToNodo('Desfile de Piloneras')" style="margin-bottom:4px; padding:5px 8px; border-radius:8px; cursor:pointer; transition:background 0.2s; display:flex; align-items:center; gap:6px;"
+             onmouseover="this.style.background='#fef6e8'" onmouseout="this.style.background='transparent'">
+            <span style="color:#e8a838; font-size:14px;">●</span> <span>💃 Desfile de Piloneras</span>
+        </div>
+        <div class="nodo-btn" onclick="flyToNodo('Feria Ganadera')" style="margin-bottom:4px; padding:5px 8px; border-radius:8px; cursor:pointer; transition:background 0.2s; display:flex; align-items:center; gap:6px;"
+             onmouseover="this.style.background='#f5f0fa'" onmouseout="this.style.background='transparent'">
+            <span style="color:#9b7dc9; font-size:14px;">●</span> <span>🐄 Feria Ganadera</span>
+        </div>
+        <div style="border-top:1px solid #e2e8f0; padding-top:6px; margin-top:4px; font-size:10px; color:#718096;">
+            <div style="font-weight:600;">Festival 2026:</div>
+            <div style="color:#e8a838;">💰 ${total_2026['impacto_total_millones']:,}M COP</div>
+            <div style="color:#43b581;">👥 {total_2026['visitantes_total']:,} visitantes</div>
+            <div style="color:#5b9bd5;">🏨 {total_2026['ocupacion_hotelera_prom']}% ocupación</div>
+        </div>
+        <div style="margin-top:6px; font-size:8px; color:#a0aec0;">
+            Fuente: CC Valledupar, SITUR, DANE
+        </div>
+    </div>
+    <script>
+    var nodosCoords = {{
+{nodos_js_data}    }};
+    function flyToNodo(nombre) {{
+        var c = nodosCoords[nombre];
+        if (!c) return;
+        // Access the Leaflet map instance
+        var mapEl = document.querySelector('.folium-map');
+        if (!mapEl) return;
+        var mapId = mapEl.id;
+        var mapObj = window[mapId];
+        if (!mapObj) return;
+        mapObj.flyTo([c.lat, c.lon], 16, {{duration: 1.2}});
+        // Try to open the marker popup after flying
+        setTimeout(function() {{
+            mapObj.eachLayer(function(layer) {{
+                if (layer.getLatLng) {{
+                    var ll = layer.getLatLng();
+                    if (Math.abs(ll.lat - c.lat) < 0.0005 && Math.abs(ll.lng - c.lon) < 0.0005) {{
+                        if (layer.getPopup && layer.getPopup()) {{
+                            layer.openPopup();
+                        }}
+                    }}
+                }}
+            }});
+        }}, 1300);
+    }}
+    // Move navigator and buttons inside map container for fullscreen support
+    (function() {{
+        function moveToMap() {{
+            var mapEl = document.querySelector('.folium-map');
+            if (!mapEl) {{ setTimeout(moveToMap, 200); return; }}
+            var nav = document.getElementById('nodoNavigator');
+            var btnA = document.getElementById('btnAirbnb');
+            var btnG = document.getElementById('btnGauss');
+            var panelA = document.getElementById('panelAirbnb');
+            var panelG = document.getElementById('panelGauss');
+            [nav, btnA, btnG, panelA, panelG].forEach(function(el) {{
+                if (el) {{
+                    mapEl.appendChild(el);
+                    el.style.position = 'absolute';
+                    // Prevent scroll from zooming the map when hovering over panels
+                    L.DomEvent.disableScrollPropagation(el);
+                    L.DomEvent.disableClickPropagation(el);
+                }}
+            }});
+        }}
+        if (document.readyState === 'complete') moveToMap();
+        else window.addEventListener('load', moveToMap);
+    }})();
+    </script>
+    """
+    mapa.get_root().html.add_child(folium.Element(leyenda_html))
+
+    # Guardar
+    os.makedirs(output_dir, exist_ok=True)
+    filepath = os.path.join(output_dir, "mapa_interactivo_valledupar.html")
+
+    # Inject Lightbox HTML and JS
+    lightbox_html = """
+    <div id="lightboxModal" style="display:none; position:fixed; z-index:99999; left:0; top:0; width:100%; height:100%; background-color:rgba(0,0,0,0.85); backdrop-filter:blur(5px); justify-content:center; align-items:center; cursor:pointer;" onclick="this.style.display='none'">
+        <span style="position:absolute; top:20px; right:30px; color:#fff; font-size:40px; font-weight:bold; cursor:pointer;">&times;</span>
+        <img id="lightboxImg" src="" style="max-width:90%; max-height:90%; border-radius:8px; box-shadow:0 0 30px rgba(0,0,0,0.5);">
+    </div>
+    <script>
+        function openLightbox(url) {
+            document.getElementById('lightboxImg').src = url;
+            document.getElementById('lightboxModal').style.display = 'flex';
+        }
+        window.openLightbox = openLightbox;
+        // Listen to messages from iframe if popup is wrapped
+        window.addEventListener('message', function(e) {
+            if (e.data && e.data.type === 'openLightbox') {
+                openLightbox(e.data.url);
+            }
+        });
+    </script>
+    """
+    mapa.get_root().html.add_child(folium.Element(lightbox_html))
+
+    # ── PUNTO EXTRA: Panel Airbnb vs Hotel integrado al mapa ──
+    from estadistica.airbnb_vs_hotel import analizar_airbnb_vs_hotel
+    resultado_ab = analizar_airbnb_vs_hotel()
+    stats_a = resultado_ab['estadisticas']['airbnb']
+    stats_h = resultado_ab['estadisticas']['hotel']
+    sector_v = resultado_ab['sector_mas_volatil']
+    dif_cv = abs(stats_a['cv_porcentaje'] - stats_h['cv_porcentaje'])
+
+    # Generar barras de medianas HTML
+    medianas_bars_html = ""
+    max_med = max(max(resultado_ab['medianas_airbnb']), max(resultado_ab['medianas_hotel']))
+    for i, anio in enumerate(ANIOS):
+        ma = resultado_ab['medianas_airbnb'][i]
+        mh = resultado_ab['medianas_hotel'][i]
+        pct_a = (ma / max_med) * 100
+        pct_h = (mh / max_med) * 100
+        medianas_bars_html += f'''
+        <div style="margin-bottom:8px;">
+            <div style="font-size:11px; color:#4a5568; margin-bottom:2px; font-weight:600;">{anio}</div>
+            <div style="display:flex; align-items:center; gap:6px; margin-bottom:2px;">
+                <span style="font-size:9px; color:#e07065; width:45px;">Airbnb</span>
+                <div style="flex:1; background:#edf2f7; border-radius:4px; height:16px; overflow:hidden;">
+                    <div style="width:{pct_a:.0f}%; height:100%; background:#e07065;
+                                border-radius:4px; transition:width 1s ease;"></div>
+                </div>
+                <span style="font-size:10px; color:#e07065; font-weight:600; width:75px; text-align:right;">${ma:,}</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:6px;">
+                <span style="font-size:9px; color:#43b581; width:45px;">Hotel</span>
+                <div style="flex:1; background:#edf2f7; border-radius:4px; height:16px; overflow:hidden;">
+                    <div style="width:{pct_h:.0f}%; height:100%; background:#43b581;
+                                border-radius:4px; transition:width 1s ease;"></div>
+                </div>
+                <span style="font-size:10px; color:#43b581; font-weight:600; width:75px; text-align:right;">${mh:,}</span>
+            </div>
+        </div>'''
+
+    # Generar tabla de rangos 2026
+    d26 = resultado_ab['datos_2026']
+    rango_a = d26['airbnb_max'] - d26['airbnb_min']
+    rango_h = d26['hotel_max'] - d26['hotel_min']
+
+    panel_airbnb_html = f'''
+    <div id="btnAirbnb" onclick="openAirbnbPanel()"
+         style="position:fixed; top:240px; left:10px; z-index:9998;
+                background:#e07065; color:white;
+                padding:8px 16px; border-radius:20px; cursor:pointer;
+                font-family:'Segoe UI',sans-serif; font-size:11px; font-weight:600;
+                box-shadow:0 3px 10px rgba(224,112,101,0.3); border:none;">
+        ⭐ Airbnb vs Hotel
+    </div>
+    <style>
+        @keyframes pulseBtn {{
+            0%,100% {{ transform:scale(1); box-shadow:0 4px 12px rgba(224,112,101,0.35); }}
+            50% {{ transform:scale(1.03); box-shadow:0 6px 18px rgba(224,112,101,0.5); }}
+        }}
+        @keyframes slideInRight {{
+            from {{ transform:translateX(100%); opacity:0; }}
+            to {{ transform:translateX(0); opacity:1; }}
+        }}
+        @keyframes fadeInUp {{
+            from {{ transform:translateY(20px); opacity:0; }}
+            to {{ transform:translateY(0); opacity:1; }}
+        }}
+        @keyframes growBar {{
+            from {{ width:0%; }}
+        }}
+        @keyframes scaleIn {{
+            from {{ transform:scale(0.7); opacity:0; }}
+            to {{ transform:scale(1); opacity:1; }}
+        }}
+        #panelAirbnb::-webkit-scrollbar {{ width:6px; }}
+        #panelAirbnb::-webkit-scrollbar-track {{ background:#f8fafb; }}
+        #panelAirbnb::-webkit-scrollbar-thumb {{ background:#cbd5e0; border-radius:3px; }}
+        .ab-section {{ opacity:0; transform:translateY(20px); }}
+        .ab-section.visible {{ animation:fadeInUp 0.6s ease forwards; }}
+        .ab-bar-fill {{ animation:growBar 1s ease forwards; }}
+        .ab-stat-card {{ animation:scaleIn 0.5s ease forwards; }}
+    </style>
+    <div id="panelAirbnb" style="display:none; position:fixed; top:0; right:0; z-index:99998;
+                width:420px; height:100vh; background:#ffffff;
+                flex-direction:column; overflow-y:auto;
+                box-shadow:-4px 0 24px rgba(0,0,0,0.10); border-left:1px solid #e2e8f0;
+                font-family:'Segoe UI',Arial,sans-serif;">
+        <div style="padding:16px 20px; background:#fdf0ef;
+                    border-bottom:1px solid #e2e8f0; position:sticky; top:0; z-index:1;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <h2 style="margin:0; color:#e07065; font-size:15px;">⭐ PUNTO EXTRA (+0.5)</h2>
+                    <p style="margin:2px 0 0; color:#718096; font-size:10px;">Análisis Airbnb vs Hotelería Tradicional</p>
+                </div>
+                <span onclick="closeAirbnbPanel()" style="color:#e07065; font-size:24px; cursor:pointer; padding:4px 8px; line-height:1;">&times;</span>
+            </div>
+        </div>
+        <div style="padding:16px 20px;">
+            <div class="ab-section" data-delay="100" style="background:#f8fafb; border-radius:12px; padding:14px; margin-bottom:14px; border:1px solid #e2e8f0;">
+                <h3 style="margin:0 0 10px; color:#2d3748; font-size:13px;">📊 1. Crecimiento Mediana de Precios (COP/noche)</h3>
+                {medianas_bars_html}
+            </div>
+            <div class="ab-section" data-delay="300" style="background:#f8fafb; border-radius:12px; padding:14px; margin-bottom:14px; border:1px solid #e2e8f0;">
+                <h3 style="margin:0 0 12px; color:#2d3748; font-size:13px;">📈 2. Desviación Estándar (σ) – ¿Cuál tiene más "ruido"?</h3>
+                <div style="display:flex; gap:10px;">
+                    <div style="flex:1; background:#fdf0ef; border:1px solid #e0706544; border-radius:10px; padding:12px; text-align:center;">
+                        <div style="font-size:10px; color:#e07065; font-weight:600;">🏠 AIRBNB</div>
+                        <div style="font-size:22px; font-weight:700; color:#e07065; margin:4px 0;">σ = ${stats_a['desviacion_std']:,.0f}</div>
+                        <div style="font-size:10px; color:#718096;">Mayor dispersión</div>
+                    </div>
+                    <div style="flex:1; background:#edf8f3; border:1px solid #43b58144; border-radius:10px; padding:12px; text-align:center;">
+                        <div style="font-size:10px; color:#43b581; font-weight:600;">🏨 HOTEL</div>
+                        <div style="font-size:22px; font-weight:700; color:#43b581; margin:4px 0;">σ = ${stats_h['desviacion_std']:,.0f}</div>
+                        <div style="font-size:10px; color:#718096;">Menor dispersión</div>
+                    </div>
+                </div>
+                <div style="text-align:center; margin-top:8px; font-size:11px; color:#e8a838;">⚠️ Airbnb tiene σ más alta → MÁS RUIDO en precios</div>
+            </div>
+            <div class="ab-section" data-delay="500" style="background:#f8fafb; border-radius:12px; padding:14px; margin-bottom:14px; border:1px solid #e2e8f0;">
+                <h3 style="margin:0 0 10px; color:#2d3748; font-size:13px;">💰 3. Rango de Precios Festival 2026</h3>
+                <table style="width:100%; border-collapse:collapse; font-size:11px; color:#2d3748;">
+                    <tr style="background:#edf2f7;"><th style="padding:6px 8px; text-align:left; border-bottom:1px solid #e2e8f0; color:#718096;">Métrica</th><th style="padding:6px; text-align:right; color:#e07065; border-bottom:1px solid #e2e8f0;">Airbnb</th><th style="padding:6px; text-align:right; color:#43b581; border-bottom:1px solid #e2e8f0;">Hotel</th></tr>
+                    <tr><td style="padding:5px 8px; border-bottom:1px solid #edf2f7;">Precio Mínimo</td><td style="padding:5px; text-align:right; border-bottom:1px solid #edf2f7;">${d26['airbnb_min']:,}</td><td style="padding:5px; text-align:right; border-bottom:1px solid #edf2f7;">${d26['hotel_min']:,}</td></tr>
+                    <tr style="background:#f8fafb;"><td style="padding:5px 8px; border-bottom:1px solid #edf2f7;">Precio Máximo</td><td style="padding:5px; text-align:right; border-bottom:1px solid #edf2f7;">${d26['airbnb_max']:,}</td><td style="padding:5px; text-align:right; border-bottom:1px solid #edf2f7;">${d26['hotel_max']:,}</td></tr>
+                    <tr><td style="padding:5px 8px; border-bottom:1px solid #edf2f7;">Mediana</td><td style="padding:5px; text-align:right; font-weight:600; color:#e07065; border-bottom:1px solid #edf2f7;">${d26['airbnb_mediana']:,}</td><td style="padding:5px; text-align:right; font-weight:600; color:#43b581; border-bottom:1px solid #edf2f7;">${d26['hotel_mediana']:,}</td></tr>
+                    <tr style="background:#fdf0ef;"><td style="padding:5px 8px; font-weight:600;">RANGO (Max-Min)</td><td style="padding:5px; text-align:right; font-weight:600; color:#e07065;">${rango_a:,}</td><td style="padding:5px; text-align:right; font-weight:600; color:#43b581;">${rango_h:,}</td></tr>
+                </table>
+                <div style="text-align:center; margin-top:8px; font-size:11px; color:#e8a838;">Airbnb tiene un rango {rango_a/rango_h:.1f}x mayor → especulación en temporada alta</div>
+            </div>
+            <div class="ab-section" data-delay="700" style="background:#f8fafb; border-radius:12px; padding:14px; margin-bottom:14px; border:1px solid #e2e8f0;">
+                <h3 style="margin:0 0 10px; color:#2d3748; font-size:13px;">📉 4. Coeficiente de Variación (CV%)</h3>
+                <div style="display:flex; gap:10px; margin-bottom:8px;">
+                    <div style="flex:1; text-align:center;"><div style="font-size:10px; color:#e07065;">AIRBNB</div><div style="font-size:28px; font-weight:700; color:#e07065;">{stats_a['cv_porcentaje']:.2f}%</div></div>
+                    <div style="display:flex; align-items:center; font-size:20px; color:#a0aec0;">vs</div>
+                    <div style="flex:1; text-align:center;"><div style="font-size:10px; color:#43b581;">HOTEL</div><div style="font-size:28px; font-weight:700; color:#43b581;">{stats_h['cv_porcentaje']:.2f}%</div></div>
+                </div>
+                <div style="display:flex; gap:4px; height:24px; border-radius:6px; overflow:hidden;">
+                    <div class="ab-bar-fill" style="width:{stats_a['cv_porcentaje']/(stats_a['cv_porcentaje']+stats_h['cv_porcentaje'])*100:.0f}%; background:#e07065; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:600; color:white;">Airbnb</div>
+                    <div class="ab-bar-fill" style="width:{stats_h['cv_porcentaje']/(stats_a['cv_porcentaje']+stats_h['cv_porcentaje'])*100:.0f}%; background:#43b581; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:600; color:white;">Hotel</div>
+                </div>
+            </div>
+            <div class="ab-section" data-delay="900" style="background:#fdf0ef; border-radius:12px; padding:16px; border:1px solid #e0706533; text-align:center;">
+                <div style="font-size:12px; color:#e07065; font-weight:600; margin-bottom:6px;">⚠️ CONCLUSIÓN: SECTOR CON MAYOR ESPECULACIÓN</div>
+                <div style="font-size:28px; font-weight:700; color:#e07065; margin:8px 0;">▶ {sector_v.upper()} ◀</div>
+                <div style="font-size:11px; color:#4a5568; line-height:1.5;">Diferencia de <b style="color:#e8a838;">{dif_cv:.2f} puntos porcentuales</b> en CV.<br>Los precios de <b style="color:#e07065;">{sector_v}</b> presentan <b style="color:#e07065;">MAYOR VOLATILIDAD</b><br>(especulación de precios) durante el Festival 2026.</div>
+                <div style="margin-top:10px; padding-top:8px; border-top:1px solid #e2e8f0; font-size:9px; color:#a0aec0; line-height:1.4;">Fuente: RCN Noticias, RTA Noticias, CC Valledupar<br>Método: Desviación Estándar y Coeficiente de Variación sobre medianas 2021-2026</div>
+            </div>
+        </div>
+    </div>
+    <script>
+    function openAirbnbPanel() {{
+        var panel = document.getElementById('panelAirbnb');
+        var btn = document.getElementById('btnAirbnb');
+        btn.style.display = 'none';
+        panel.style.display = 'flex';
+        panel.style.animation = 'slideInRight 0.5s ease forwards';
+        var sections = panel.querySelectorAll('.ab-section');
+        sections.forEach(function(s) {{
+            s.classList.remove('visible');
+            s.style.opacity = '0';
+            s.style.transform = 'translateY(20px)';
+        }});
+        sections.forEach(function(s) {{
+            var delay = parseInt(s.getAttribute('data-delay')) || 0;
+            setTimeout(function() {{
+                s.classList.add('visible');
+            }}, delay);
+        }});
+    }}
+    function closeAirbnbPanel() {{
+        var panel = document.getElementById('panelAirbnb');
+        panel.style.animation = 'slideInRight 0.4s ease reverse forwards';
+        setTimeout(function() {{
+            panel.style.display = 'none';
+            document.getElementById('btnAirbnb').style.display = 'block';
+        }}, 400);
+    }}
+    </script>
+    '''
+    mapa.get_root().html.add_child(folium.Element(panel_airbnb_html))
+
+    # ── CAMPANA DE GAUSS: Panel integrado al mapa ──
+    from estadistica.inferencial import calcular_probabilidad_superar_meta
+    from data.datos_festival import DIST_NORMAL_PARAMS
+    res_gauss = calcular_probabilidad_superar_meta()
+    mu = DIST_NORMAL_PARAMS['media']
+    sigma = DIST_NORMAL_PARAMS['desviacion']
+    meta = DIST_NORMAL_PARAMS['meta']
+    z_score = res_gauss['z_score']
+    prob = res_gauss['prob_superar_porcentaje']
+    # Serie histórica de ingresos del Parque de la Leyenda
+    ingresos_hist = [DATOS["Parque de la Leyenda"][a]["ingresos_millones"] for a in ANIOS]
+
+    # Build SVG bell curve points
+    import math
+    svg_points = []
+    shade_points = []
+    svg_w, svg_h = 360, 160
+    x_min, x_max = mu - 3.5*sigma, mu + 3.5*sigma
+    meta_svg_x = ((meta - x_min) / (x_max - x_min)) * svg_w
+    for i in range(200):
+        x_val = x_min + (x_max - x_min) * i / 199
+        z = (x_val - mu) / sigma
+        y_val = math.exp(-0.5 * z * z) / (sigma * math.sqrt(2 * math.pi))
+        sx = (i / 199) * svg_w
+        sy = svg_h - (y_val / (1 / (sigma * math.sqrt(2 * math.pi)))) * (svg_h - 10)
+        svg_points.append(f"{sx:.1f},{sy:.1f}")
+        if x_val >= meta:
+            shade_points.append(f"{sx:.1f},{sy:.1f}")
+
+    curve_path = " ".join(svg_points)
+    # Build shaded polygon for P(X > meta)
+    shade_poly = ""
+    if shade_points:
+        first_x = shade_points[0].split(",")[0]
+        last_x = shade_points[-1].split(",")[0]
+        shade_poly = f"{first_x},{svg_h} " + " ".join(shade_points) + f" {last_x},{svg_h}"
+
+    hist_bars = ""
+    max_ing = max(ingresos_hist)
+    for i, (a, v) in enumerate(zip(ANIOS, ingresos_hist)):
+        pct = (v / max_ing) * 100
+        color = "#e07065" if a == 2026 else "#5b9bd540"
+        border = "border:1px solid #5b9bd5;" if a == 2026 else ""
+        hist_bars += f'''<div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:2px;">
+            <div style="font-size:8px; color:#e8a838; font-weight:600;">${v:,}M</div>
+            <div style="width:100%; background:#edf2f7; border-radius:3px; height:60px; display:flex; align-items:flex-end;">
+                <div class="gauss-bar" style="width:100%; height:{pct:.0f}%; background:{color}; border-radius:3px; {border}"></div>
+            </div>
+            <div style="font-size:8px; color:#718096;">{a}</div>
+        </div>'''
+
+    panel_gauss_html = f'''
+    <div id="btnGauss" onclick="openGaussPanel()"
+         style="position:fixed; top:205px; left:10px; z-index:9998;
+                background:#9b7dc9; color:white;
+                padding:8px 16px; border-radius:20px; cursor:pointer;
+                font-family:'Segoe UI',sans-serif; font-size:11px; font-weight:600;
+                box-shadow:0 3px 10px rgba(155,125,201,0.3); border:none;">
+        📊 Campana de Gauss
+    </div>
+    <div id="panelGauss" style="display:none; position:fixed; top:0; left:0; z-index:99998;
+                width:440px; height:100vh; background:#ffffff;
+                flex-direction:column; overflow-y:auto;
+                box-shadow:4px 0 24px rgba(0,0,0,0.10); border-right:1px solid #e2e8f0;
+                font-family:'Segoe UI',Arial,sans-serif;">
+        <div style="padding:16px 20px; background:#f5f0fa;
+                    border-bottom:1px solid #e2e8f0; position:sticky; top:0; z-index:1;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <h2 style="margin:0; color:#9b7dc9; font-size:15px;">📊 Distribución Normal – Campana de Gauss</h2>
+                    <p style="margin:2px 0 0; color:#718096; font-size:10px;">Parque de la Leyenda Vallenata – Proyección 2026</p>
+                </div>
+                <span onclick="closeGaussPanel()" style="color:#e07065; font-size:24px; cursor:pointer; padding:4px 8px; line-height:1;">&times;</span>
+            </div>
+        </div>
+        <div style="padding:16px 20px;">
+            <!-- Serie Histórica -->
+            <div class="gauss-section" data-delay="100" style="background:#f8fafb; border-radius:12px; padding:14px; margin-bottom:14px; border:1px solid #e2e8f0;">
+                <h3 style="margin:0 0 10px; color:#2d3748; font-size:13px;">📈 Serie Histórica de Ingresos (2021-2026)</h3>
+                <div style="display:flex; gap:4px; align-items:flex-end;">{hist_bars}</div>
+            </div>
+            <!-- Parámetros -->
+            <div class="gauss-section" data-delay="300" style="background:#f8fafb; border-radius:12px; padding:14px; margin-bottom:14px; border:1px solid #e2e8f0;">
+                <h3 style="margin:0 0 10px; color:#2d3748; font-size:13px;">⚙️ Parámetros del Modelo</h3>
+                <div style="display:flex; gap:8px;">
+                    <div style="flex:1; background:#f5f0fa; border:1px solid #9b7dc944; border-radius:8px; padding:10px; text-align:center;">
+                        <div style="font-size:9px; color:#718096;">Media (μ)</div>
+                        <div style="font-size:20px; font-weight:700; color:#9b7dc9;">${mu:,}M</div>
+                    </div>
+                    <div style="flex:1; background:#edf4fb; border:1px solid #5b9bd544; border-radius:8px; padding:10px; text-align:center;">
+                        <div style="font-size:9px; color:#718096;">Desv. Std (σ)</div>
+                        <div style="font-size:20px; font-weight:700; color:#5b9bd5;">${sigma:,}M</div>
+                    </div>
+                    <div style="flex:1; background:#fef6e8; border:1px solid #e8a83844; border-radius:8px; padding:10px; text-align:center;">
+                        <div style="font-size:9px; color:#718096;">Meta (X)</div>
+                        <div style="font-size:20px; font-weight:700; color:#e8a838;">${meta:,}M</div>
+                    </div>
+                </div>
+            </div>
+            <!-- Campana SVG -->
+            <div class="gauss-section" data-delay="500" style="background:#f8fafb; border-radius:12px; padding:14px; margin-bottom:14px; border:1px solid #e2e8f0;">
+                <h3 style="margin:0 0 8px; color:#2d3748; font-size:13px;">🔔 Campana de Gauss – Área Sombreada P(X &gt; {meta:,})</h3>
+                <svg viewBox="0 0 {svg_w} {svg_h + 30}" style="width:100%; height:auto; background:#f0f4f8; border-radius:8px; padding:4px;">
+                    <defs><linearGradient id="curveGrad" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stop-color="#5b9bd5"/><stop offset="100%" stop-color="#9b7dc9"/>
+                    </linearGradient></defs>
+                    <polygon points="{shade_poly}" fill="#e0706566" stroke="none" class="gauss-shade"/>
+                    <polyline points="{curve_path}" fill="none" stroke="url(#curveGrad)" stroke-width="2.5" class="gauss-curve"/>
+                    <line x1="{meta_svg_x:.1f}" y1="5" x2="{meta_svg_x:.1f}" y2="{svg_h}" stroke="#e8a838" stroke-width="1.5" stroke-dasharray="4,3"/>
+                    <line x1="{((mu - x_min)/(x_max - x_min))*svg_w:.1f}" y1="5" x2="{((mu - x_min)/(x_max - x_min))*svg_w:.1f}" y2="{svg_h}" stroke="#9b7dc9" stroke-width="1" stroke-dasharray="3,3" opacity="0.6"/>
+                    <text x="{meta_svg_x:.1f}" y="{svg_h + 15}" fill="#e8a838" font-size="9" text-anchor="middle" font-weight="bold">Meta ${meta:,}M</text>
+                    <text x="{((mu - x_min)/(x_max - x_min))*svg_w:.1f}" y="{svg_h + 15}" fill="#9b7dc9" font-size="9" text-anchor="middle">μ=${mu:,}M</text>
+                    <text x="{meta_svg_x + 30:.1f}" y="25" fill="#e07065" font-size="10" font-weight="bold">{prob:.2f}%</text>
+                </svg>
+                <div style="display:flex; justify-content:center; gap:16px; margin-top:6px; font-size:9px; color:#4a5568;">
+                    <span><span style="display:inline-block; width:12px; height:3px; background:linear-gradient(90deg,#5b9bd5,#9b7dc9); border-radius:2px; vertical-align:middle;"></span> Distribución Normal</span>
+                    <span><span style="display:inline-block; width:12px; height:8px; background:#e0706566; border-radius:2px; vertical-align:middle;"></span> P(X &gt; meta) = {prob:.2f}%</span>
+                    <span style="color:#e8a838;">┊ Meta</span>
+                    <span style="color:#9b7dc9;">┊ Media</span>
+                </div>
+            </div>
+            <!-- Cálculos Paso a Paso -->
+            <div class="gauss-section" data-delay="700" style="background:#f8fafb; border-radius:12px; padding:14px; margin-bottom:14px; border:1px solid #e2e8f0;">
+                <h3 style="margin:0 0 10px; color:#2d3748; font-size:13px;">🧮 Cálculo Paso a Paso</h3>
+                <div style="background:#f0f4f8; border-radius:8px; padding:12px; font-family:monospace; font-size:12px; color:#4a5568; line-height:1.8;">
+                    <div><span style="color:#9b7dc9;">Paso 1:</span> Z = (X - μ) / σ</div>
+                    <div style="padding-left:20px;">Z = ({meta:,} - {mu:,}) / {sigma}</div>
+                    <div style="padding-left:20px;">Z = {meta - mu:,} / {sigma}</div>
+                    <div style="padding-left:20px; color:#e8a838; font-weight:bold;">Z = {z_score:.4f}</div>
+                    <div style="margin-top:8px;"><span style="color:#9b7dc9;">Paso 2:</span> P(X &gt; {meta:,}) = P(Z &gt; {z_score:.2f})</div>
+                    <div style="padding-left:20px;">= 1 - Φ({z_score:.2f})</div>
+                    <div style="padding-left:20px;">= 1 - {1 - prob/100:.6f}</div>
+                    <div style="padding-left:20px; color:#e07065; font-weight:bold; font-size:14px;">= {prob/100:.6f} → {prob:.2f}%</div>
+                </div>
+            </div>
+            <!-- Conclusión -->
+            <div class="gauss-section" data-delay="900" style="background:#f5f0fa; border-radius:12px; padding:16px; border:1px solid #9b7dc933; text-align:center;">
+                <div style="font-size:12px; color:#9b7dc9; font-weight:600; margin-bottom:6px;">📌 RESULTADO: PROBABILIDAD DE SUPERAR LA META</div>
+                <div style="font-size:36px; font-weight:700; color:#e07065; margin:8px 0;">P = {prob:.2f}%</div>
+                <div style="font-size:13px; color:#e8a838; font-weight:600; margin-bottom:6px;">{'POCO PROBABLE' if prob < 20 else 'MODERADAMENTE PROBABLE' if prob < 50 else 'PROBABLE'}</div>
+                <div style="font-size:11px; color:#4a5568; line-height:1.5;">Un Z-score de <b style="color:#e8a838;">{z_score:.2f}</b> indica que la meta está <b style="color:#e07065;">{z_score:.1f} desviaciones estándar</b> por encima de la media histórica. Se necesitarían condiciones excepcionales para alcanzar ${meta:,}M.</div>
+                <div style="margin-top:10px; padding-top:8px; border-top:1px solid #e2e8f0; font-size:9px; color:#a0aec0;">Modelo: Distribución Normal · Fuente: CC Valledupar · Datos: 2021-2026</div>
+            </div>
+        </div>
+    </div>
+    <script>
+    function openGaussPanel() {{
+        var panel = document.getElementById('panelGauss');
+        document.getElementById('btnGauss').style.display = 'none';
+        panel.style.display = 'flex';
+        panel.style.animation = 'slideInLeft 0.5s ease forwards';
+        var sections = panel.querySelectorAll('.gauss-section');
+        sections.forEach(function(s) {{ s.classList.remove('visible'); s.style.opacity='0'; s.style.transform='translateY(20px)'; }});
+        sections.forEach(function(s) {{
+            var delay = parseInt(s.getAttribute('data-delay')) || 0;
+            setTimeout(function() {{ s.classList.add('visible'); }}, delay);
+        }});
+    }}
+    function closeGaussPanel() {{
+        var panel = document.getElementById('panelGauss');
+        panel.style.animation = 'slideInLeft 0.4s ease reverse forwards';
+        setTimeout(function() {{ panel.style.display='none'; document.getElementById('btnGauss').style.display='block'; }}, 400);
+    }}
+    </script>
+    <style>
+        @keyframes slideInLeft {{ from {{ transform:translateX(-100%); opacity:0; }} to {{ transform:translateX(0); opacity:1; }} }}
+        .gauss-section {{ opacity:0; transform:translateY(20px); }}
+        .gauss-section.visible {{ animation:fadeInUp 0.6s ease forwards; }}
+        .gauss-curve {{ stroke-dasharray:1000; stroke-dashoffset:1000; animation: drawCurve 2s ease forwards 0.5s; }}
+        .gauss-shade {{ opacity:0; animation: fadeShade 1s ease forwards 1.5s; }}
+        .gauss-bar {{ animation: growBar 0.8s ease forwards; }}
+        @keyframes drawCurve {{ to {{ stroke-dashoffset:0; }} }}
+        @keyframes fadeShade {{ to {{ opacity:1; }} }}
+    </style>
+    '''
+    mapa.get_root().html.add_child(folium.Element(panel_gauss_html))
+
+    mapa.save(filepath)
+    print(f"\n  ✓ Mapa interactivo guardado: {filepath}")
+    print(f"  ✓ Abra el archivo HTML en su navegador para interactuar")
+
+    return mapa
