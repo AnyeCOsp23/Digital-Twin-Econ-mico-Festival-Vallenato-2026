@@ -87,6 +87,33 @@ def _calcular_crecimiento(nodo, variable="ingresos_millones"):
     return 0
 
 
+def _seccion_comparacion(nodo, anio, color):
+    """
+    Emite un div vacío con los datos del nodo en JSON.
+    El JS del mapa escucha overlayadd/overlayremove del LayerControl
+    y rellena este div solo cuando hay 2+ años activos.
+    """
+    import json as _json
+    datos_nodo = {}
+    for a in ANIOS:
+        d = DATOS[nodo][a]
+        datos_nodo[str(a)] = {
+            "visitantes":                d["visitantes"],
+            "ingresos_millones":         d["ingresos_millones"],
+            "gasto_promedio":            d["gasto_promedio"],
+            "procedencia_moda":          d["procedencia_moda"],
+            "ocupacion_hotelera":        d["ocupacion_hotelera"],
+            "empleos_temporales":        d["empleos_temporales"],
+            "precio_hospedaje_promedio": d["precio_hospedaje_promedio"],
+        }
+    data_json = _json.dumps(datos_nodo, ensure_ascii=False).replace("'", "&#39;")
+    return f"""<div class="comp-container"
+         data-anio="{anio}"
+         data-color="{color}"
+         data-datos='{data_json}'
+         style="margin-top:10px; margin-bottom:8px;"></div>"""
+
+
 def crear_popup_html(nodo, anio):
     """Crea popup HTML enriquecido — diseño limpio, colores suaves y amigables."""
     datos = DATOS[nodo][anio]
@@ -134,7 +161,7 @@ def crear_popup_html(nodo, anio):
     st = calcular_estadisticas_serie_temporal(nodo, "ingresos_millones")
 
     html = f"""
-    <div style="width:400px; font-family:'Segoe UI',Arial,sans-serif;
+    <div style="width:460px; font-family:'Segoe UI',Arial,sans-serif;
                 background:#ffffff; color:#2d3748; border-radius:16px; padding:0; overflow:hidden;
                 box-shadow:0 4px 20px rgba(0,0,0,0.10); border:1px solid #e2e8f0;">
 
@@ -256,6 +283,8 @@ def crear_popup_html(nodo, anio):
         {_barra_progreso(datos['ingresos_millones'], 10000, "#e8a838", "Ingresos (vs $10,000M meta)")}
         {_barra_progreso(datos['ocupacion_hotelera'], 100, "#5b9bd5", "Ocupación hotelera (%)")}
 
+        {_seccion_comparacion(nodo, anio, color)}
+
         <p style="margin:8px 0 0; font-size:8px; color:#a0aec0; font-style:italic; line-height:1.3;">
             📌 {datos['fuente']}<br>
             🗺️ Coords: {info['lat']:.6f}°N, {abs(info['lon']):.6f}°W
@@ -332,7 +361,7 @@ def generar_mapa_interactivo(output_dir="output"):
             radio = max(10, min(30, datos["ingresos_millones"] / 400))
 
             popup_html = crear_popup_html(nodo, anio)
-            popup = folium.Popup(popup_html, max_width=440)
+            popup = folium.Popup(popup_html, max_width=480)
 
             tooltip = (f"{EMOJIS[nodo]} {nodo} ({anio})\n"
                        f"💰 ${datos['ingresos_millones']:,}M COP\n"
@@ -464,7 +493,6 @@ def generar_mapa_interactivo(output_dir="output"):
                 if (el) {{
                     mapEl.appendChild(el);
                     el.style.position = 'absolute';
-                    // Prevent scroll from zooming the map when hovering over panels
                     L.DomEvent.disableScrollPropagation(el);
                     L.DomEvent.disableClickPropagation(el);
                 }}
@@ -472,6 +500,148 @@ def generar_mapa_interactivo(output_dir="output"):
         }}
         if (document.readyState === 'complete') moveToMap();
         else window.addEventListener('load', moveToMap);
+    }})();
+
+    // ── Comparación multi-año: escucha los checkboxes del LayerControl ────────
+    (function() {{
+        var YEAR_PAL = {{
+            "2021": "#718096", "2022": "#5b9bd5", "2023": "#43b581",
+            "2024": "#e8a838", "2025": "#e07065", "2026": "#9b7dc9"
+        }};
+        // 2026 está activo por defecto (show=True en Python)
+        var activeYears = ["2026"];
+
+        function yearFromName(name) {{
+            var m = (name || '').match(/(\d{{4}})/);
+            return m ? m[1] : null;
+        }}
+
+        function renderComparacion(container) {{
+            var anioPropio = container.getAttribute('data-anio');
+            var color      = container.getAttribute('data-color');
+            var datos      = JSON.parse(container.getAttribute('data-datos').replace(/&#39;/g, "'"));
+
+            // Ocultar si hay menos de 2 años activos o si este año no está activo
+            if (activeYears.length < 2 || activeYears.indexOf(anioPropio) === -1) {{
+                container.innerHTML = '';
+                return;
+            }}
+
+            var anos = activeYears.slice().sort();
+
+            function fmtN(n)   {{ return n.toLocaleString('es-CO'); }}
+            function fmtM(n)   {{ return '$' + n.toLocaleString('es-CO') + 'M'; }}
+            function fmtCOP(n) {{ return '$' + n.toLocaleString('es-CO'); }}
+            function fmtPct(n) {{ return n + '%'; }}
+
+            function barraMetrica(clave, label, fmt, maxOv) {{
+                var vals = {{}};
+                anos.forEach(function(a) {{ vals[a] = datos[a][clave]; }});
+                var mv = maxOv || Math.max.apply(null, anos.map(function(a){{return vals[a];}}) ) || 1;
+                var h = '<div style="margin-bottom:9px;">';
+                h += '<div style="font-size:10px;font-weight:600;color:#4a5568;margin-bottom:4px;">' + label + '</div>';
+                anos.forEach(function(a) {{
+                    var v   = vals[a];
+                    var pct = Math.min(100, (v / mv) * 100).toFixed(1);
+                    var ac  = YEAR_PAL[a] || '#718096';
+                    var esA = (a === anioPropio);
+                    var bgRow = esA ? ac + '18' : 'transparent';
+                    var bL  = esA ? 'border-left:3px solid ' + ac + ';' : 'border-left:3px solid transparent;';
+                    var fw  = esA ? '700' : '500';
+                    var extra = '';
+                    if (esA) {{
+                        extra = '<span style="font-size:8px;color:' + ac + ';font-weight:700;white-space:nowrap;">◀ activo</span>';
+                    }} else {{
+                        var v0 = datos[anioPropio][clave];
+                        if (v0 > 0) {{
+                            var d  = ((v - v0) / v0 * 100).toFixed(1);
+                            var ar = d > 0 ? '▲' : '▼';
+                            var dc = d > 0 ? '#43b581' : '#e07065';
+                            extra = '<span style="font-size:8px;color:' + dc + ';width:38px;text-align:right;display:inline-block;">' + ar + Math.abs(d) + '%</span>';
+                        }}
+                    }}
+                    h += '<div style="display:flex;align-items:center;gap:5px;margin-bottom:2px;'
+                       + 'background:' + bgRow + ';border-radius:4px;padding:2px 3px;' + bL + '">'
+                       + '<span style="font-size:9px;font-weight:' + fw + ';color:' + ac + ';width:30px;">' + a + '</span>'
+                       + '<div style="flex:1;background:#edf2f7;border-radius:4px;height:8px;overflow:hidden;">'
+                       + '<div style="width:' + pct + '%;height:100%;background:' + ac + ';border-radius:4px;"></div>'
+                       + '</div>'
+                       + '<span style="font-size:9px;font-weight:' + fw + ';color:#2d3748;width:68px;text-align:right;">' + fmt(v) + '</span>'
+                       + extra + '</div>';
+                }});
+                h += '</div>';
+                return h;
+            }}
+
+            function procedencia() {{
+                var h = '<div style="margin-bottom:8px;">';
+                h += '<div style="font-size:10px;font-weight:600;color:#4a5568;margin-bottom:4px;">🌎 Procedencia dominante</div>';
+                h += '<div style="display:flex;flex-wrap:wrap;gap:4px;">';
+                var hayCambio = false;
+                var prev = null;
+                anos.forEach(function(a) {{
+                    var proc = datos[a].procedencia_moda;
+                    var ac   = YEAR_PAL[a] || '#718096';
+                    var esA  = (a === anioPropio);
+                    var cambio = (prev !== null && proc !== prev);
+                    if (cambio) hayCambio = true;
+                    var bg  = esA ? ac : ac + '22';
+                    var fc  = esA ? '#fff' : ac;
+                    var brd = esA ? '2px solid ' + ac : '1px solid ' + ac + '55';
+                    h += '<span style="font-size:9px;font-weight:' + (esA?'700':'600') + ';'
+                       + 'background:' + bg + ';color:' + fc + ';'
+                       + 'padding:2px 8px;border-radius:10px;border:' + brd + ';">'
+                       + a + ': ' + (cambio ? '⚠️ ' : '') + proc + '</span>';
+                    prev = proc;
+                }});
+                h += '</div>';
+                if (hayCambio) h += '<div style="font-size:8px;color:#e8a838;margin-top:2px;">⚠️ Cambio de procedencia dominante entre años seleccionados</div>';
+                h += '</div>';
+                return h;
+            }}
+
+            var titulo = '🔀 Comparando: ' + anos.join(' · ');
+            var out = '<div style="background:#f8fafb;border-radius:10px;padding:12px;border:1px solid #e2e8f0;">'
+                    + '<div style="font-size:11px;color:' + color + ';font-weight:700;'
+                    + 'margin-bottom:10px;border-bottom:1px solid #e2e8f0;padding-bottom:6px;">'
+                    + titulo + '</div>'
+                    + barraMetrica('visitantes',            '👥 Visitantes',             fmtN)
+                    + barraMetrica('ingresos_millones',     '💰 Ingresos (M COP)',       fmtM)
+                    + barraMetrica('gasto_promedio',        '🛒 Gasto promedio (COP)',   fmtCOP)
+                    + barraMetrica('empleos_temporales',    '👷 Empleos temporales',     fmtN)
+                    + barraMetrica('ocupacion_hotelera',    '🏨 Ocupación hotelera',     fmtPct, 100)
+                    + barraMetrica('precio_hospedaje_promedio', '💵 Precio hospedaje/noche', fmtCOP)
+                    + procedencia()
+                    + '</div>';
+            container.innerHTML = out;
+        }}
+
+        function refreshAll() {{
+            document.querySelectorAll('.comp-container').forEach(renderComparacion);
+        }}
+
+        function initListeners() {{
+            var mapEl = document.querySelector('.folium-map');
+            if (!mapEl) {{ setTimeout(initListeners, 300); return; }}
+            var mapObj = window[mapEl.id];
+            if (!mapObj) {{ setTimeout(initListeners, 300); return; }}
+
+            mapObj.on('overlayadd', function(e) {{
+                var y = yearFromName(e.name);
+                if (y && activeYears.indexOf(y) === -1) activeYears.push(y);
+                refreshAll();
+            }});
+            mapObj.on('overlayremove', function(e) {{
+                var y = yearFromName(e.name);
+                if (y) activeYears = activeYears.filter(function(x) {{ return x !== y; }});
+                refreshAll();
+            }});
+            // Refrescar cuando se abre un popup (los containers se crean al abrir)
+            mapObj.on('popupopen', function() {{ setTimeout(refreshAll, 60); }});
+        }}
+
+        if (document.readyState === 'complete') initListeners();
+        else window.addEventListener('load', initListeners);
     }})();
     </script>
     """
