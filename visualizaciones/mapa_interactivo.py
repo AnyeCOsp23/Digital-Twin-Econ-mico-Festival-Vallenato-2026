@@ -78,12 +78,15 @@ def _barra_progreso(valor, maximo, color="#43b581", label=""):
     </div>'''
 
 
-def _calcular_crecimiento(nodo, variable="ingresos_millones"):
-    """Calcula el crecimiento porcentual 2025→2026."""
-    v25 = DATOS[nodo][2025][variable]
-    v26 = DATOS[nodo][2026][variable]
-    if v25 > 0:
-        return ((v26 - v25) / v25) * 100
+def _calcular_crecimiento(nodo, anio, variable="ingresos_millones"):
+    """Calcula el crecimiento porcentual respecto al año anterior."""
+    anio_anterior = anio - 1
+    if anio_anterior not in DATOS[nodo]:
+        return None  # No hay año anterior para comparar
+    v_ant = DATOS[nodo][anio_anterior][variable]
+    v_act = DATOS[nodo][anio][variable]
+    if v_ant > 0:
+        return ((v_act - v_ant) / v_ant) * 100
     return 0
 
 
@@ -135,13 +138,15 @@ def crear_popup_html(nodo, anio):
                  onerror="this.style.display='none'"/>
         </div>'''
 
-    # Crecimiento
-    crec_ingresos = _calcular_crecimiento(nodo, "ingresos_millones")
-    crec_visitantes = _calcular_crecimiento(nodo, "visitantes")
-    crec_color_i = "#43b581" if crec_ingresos >= 0 else "#e07065"
-    crec_color_v = "#43b581" if crec_visitantes >= 0 else "#e07065"
-    crec_arrow_i = "▲" if crec_ingresos >= 0 else "▼"
-    crec_arrow_v = "▲" if crec_visitantes >= 0 else "▼"
+    # Crecimiento (respecto al año anterior)
+    crec_ingresos = _calcular_crecimiento(nodo, anio, "ingresos_millones")
+    crec_visitantes = _calcular_crecimiento(nodo, anio, "visitantes")
+    anio_anterior = anio - 1
+    tiene_comparacion = crec_ingresos is not None
+    crec_color_i = "#43b581" if (crec_ingresos or 0) >= 0 else "#e07065"
+    crec_color_v = "#43b581" if (crec_visitantes or 0) >= 0 else "#e07065"
+    crec_arrow_i = "▲" if (crec_ingresos or 0) >= 0 else "▼"
+    crec_arrow_v = "▲" if (crec_visitantes or 0) >= 0 else "▼"
 
     # Serie temporal para mini sparkline
     ingresos_serie = [DATOS[nodo][a]["ingresos_millones"] for a in ANIOS]
@@ -203,9 +208,7 @@ def crear_popup_html(nodo, anio):
                 <div style="font-size:18px; font-weight:700; color:#43b581; margin:2px 0;">
                     {datos['visitantes']:,}
                 </div>
-                <div style="font-size:9px; color:{crec_color_v}; font-weight:600;">
-                    {crec_arrow_v} {abs(crec_visitantes):.1f}% vs 2025
-                </div>
+                {'<div style="font-size:9px; color:' + crec_color_v + '; font-weight:600;">' + crec_arrow_v + ' ' + f'{abs(crec_visitantes):.1f}' + '% vs ' + str(anio_anterior) + '</div>' if tiene_comparacion else '<div style="font-size:9px; color:#a0aec0; font-weight:500;">— Año base</div>'}
             </div>
             <div style="background:#f8fafb; padding:10px; border-radius:10px; text-align:center;
                         border:1px solid #e2e8f0;">
@@ -213,9 +216,7 @@ def crear_popup_html(nodo, anio):
                 <div style="font-size:18px; font-weight:700; color:{color}; margin:2px 0;">
                     ${datos['ingresos_millones']:,}M
                 </div>
-                <div style="font-size:9px; color:{crec_color_i}; font-weight:600;">
-                    {crec_arrow_i} {abs(crec_ingresos):.1f}% vs 2025
-                </div>
+                {'<div style="font-size:9px; color:' + crec_color_i + '; font-weight:600;">' + crec_arrow_i + ' ' + f'{abs(crec_ingresos):.1f}' + '% vs ' + str(anio_anterior) + '</div>' if tiene_comparacion else '<div style="font-size:9px; color:#a0aec0; font-weight:500;">— Año base</div>'}
             </div>
         </div>
 
