@@ -186,7 +186,7 @@ def crear_popup_html(nodo, anio):
 
         {foto_html}
 
-        <div style="padding:14px 16px 16px;">
+        <div class="popup-scroll-container" style="padding:14px 16px 16px; max-height:300px; overflow-y:auto; overflow-x:hidden;">
 
         <div style="display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap;">
             <span style="background:{color_bg}; color:{color}; padding:3px 10px;
@@ -481,6 +481,12 @@ def generar_mapa_interactivo(output_dir="output"):
         .leaflet-control-layers-list::-webkit-scrollbar-track { background: #f8fafb; border-radius: 4px; }
         .leaflet-control-layers-list::-webkit-scrollbar-thumb { background: #cbd5e0; border-radius: 4px; }
         
+        /* Scrollbar para los popups de los nodos */
+        .popup-scroll-container::-webkit-scrollbar { width: 6px; }
+        .popup-scroll-container::-webkit-scrollbar-track { background: #f8fafb; border-radius: 4px; }
+        .popup-scroll-container::-webkit-scrollbar-thumb { background: #cbd5e0; border-radius: 4px; }
+        .popup-scroll-container::-webkit-scrollbar-thumb:hover { background: #a0aec0; }
+        
         .leaflet-control-layers-base {
             padding-bottom: 10px;
         }
@@ -596,6 +602,27 @@ def generar_mapa_interactivo(output_dir="output"):
         nodos_js_data += f'  "{nodo}": {{lat: {coord["lat"]}, lon: {coord["lon"]}}},\n'
 
     leyenda_html = f"""
+    <style>
+        .nodo-btn {{
+            margin-bottom: 4px;
+            padding: 6px 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: transparent;
+        }}
+        .nodo-btn:hover {{
+            transform: translateX(5px);
+        }}
+        .btn-parque:hover {{ background: #fdf0ef; }}
+        .btn-plaza:hover {{ background: #edf4fb; }}
+        .btn-balneario:hover {{ background: #edf8f3; }}
+        .btn-desfile:hover {{ background: #fef6e8; }}
+        .btn-feria:hover {{ background: #f5f0fa; }}
+    </style>
     <div id="nodoNavigator" style="position:fixed; bottom:30px; left:10px; z-index:9999;
                 background:rgba(255,255,255,0.95); backdrop-filter:blur(8px);
                 padding:14px 16px; border-radius:14px; border:1px solid #e2e8f0;
@@ -605,25 +632,20 @@ def generar_mapa_interactivo(output_dir="output"):
                     border-bottom:1px solid #e2e8f0; padding-bottom:6px;">
             📌 Ir a Nodo Económico
         </div>
-        <div class="nodo-btn" onclick="flyToNodo('Parque de la Leyenda')" style="margin-bottom:4px; padding:5px 8px; border-radius:8px; cursor:pointer; transition:background 0.2s; display:flex; align-items:center; gap:6px;"
-             onmouseover="this.style.background='#fdf0ef'" onmouseout="this.style.background='transparent'">
-            <span style="color:#e07065; font-size:14px;">●</span> <span>🎵 Parque de la Leyenda</span>
+        <div class="nodo-btn btn-parque" onclick="flyToNodo('Parque de la Leyenda')">
+            <span style="color:#e07065; font-size:14px;">●</span> <span style="font-weight:500;">🎵 Parque de la Leyenda</span>
         </div>
-        <div class="nodo-btn" onclick="flyToNodo('Plaza Alfonso López')" style="margin-bottom:4px; padding:5px 8px; border-radius:8px; cursor:pointer; transition:background 0.2s; display:flex; align-items:center; gap:6px;"
-             onmouseover="this.style.background='#edf4fb'" onmouseout="this.style.background='transparent'">
-            <span style="color:#5b9bd5; font-size:14px;">●</span> <span>🏛️ Plaza Alfonso López</span>
+        <div class="nodo-btn btn-plaza" onclick="flyToNodo('Plaza Alfonso López')">
+            <span style="color:#5b9bd5; font-size:14px;">●</span> <span style="font-weight:500;">🏛️ Plaza Alfonso López</span>
         </div>
-        <div class="nodo-btn" onclick="flyToNodo('Balneario Hurtado')" style="margin-bottom:4px; padding:5px 8px; border-radius:8px; cursor:pointer; transition:background 0.2s; display:flex; align-items:center; gap:6px;"
-             onmouseover="this.style.background='#edf8f3'" onmouseout="this.style.background='transparent'">
-            <span style="color:#43b581; font-size:14px;">●</span> <span>🌊 Balneario Hurtado</span>
+        <div class="nodo-btn btn-balneario" onclick="flyToNodo('Balneario Hurtado')">
+            <span style="color:#43b581; font-size:14px;">●</span> <span style="font-weight:500;">🌊 Balneario Hurtado</span>
         </div>
-        <div class="nodo-btn" onclick="flyToNodo('Desfile de Piloneras')" style="margin-bottom:4px; padding:5px 8px; border-radius:8px; cursor:pointer; transition:background 0.2s; display:flex; align-items:center; gap:6px;"
-             onmouseover="this.style.background='#fef6e8'" onmouseout="this.style.background='transparent'">
-            <span style="color:#e8a838; font-size:14px;">●</span> <span>💃 Desfile de Piloneras</span>
+        <div class="nodo-btn btn-desfile" onclick="flyToNodo('Desfile de Piloneras')">
+            <span style="color:#e8a838; font-size:14px;">●</span> <span style="font-weight:500;">💃 Desfile de Piloneras</span>
         </div>
-        <div class="nodo-btn" onclick="flyToNodo('Feria Ganadera')" style="margin-bottom:4px; padding:5px 8px; border-radius:8px; cursor:pointer; transition:background 0.2s; display:flex; align-items:center; gap:6px;"
-             onmouseover="this.style.background='#f5f0fa'" onmouseout="this.style.background='transparent'">
-            <span style="color:#9b7dc9; font-size:14px;">●</span> <span>🐄 Feria Ganadera</span>
+        <div class="nodo-btn btn-feria" onclick="flyToNodo('Feria Ganadera')">
+            <span style="color:#9b7dc9; font-size:14px;">●</span> <span style="font-weight:500;">🐄 Feria Ganadera</span>
         </div>
         <div style="border-top:1px solid #e2e8f0; padding-top:6px; margin-top:4px; font-size:10px; color:#718096;">
             <div style="font-weight:600;">Festival 2026:</div>
@@ -893,10 +915,11 @@ def generar_mapa_interactivo(output_dir="output"):
                 background:#e07065; color:white;
                 padding:8px 16px; border-radius:20px; cursor:pointer;
                 font-family:'Segoe UI',sans-serif; font-size:11px; font-weight:600;
-                box-shadow:0 3px 10px rgba(224,112,101,0.3); border:none;">
+                box-shadow:0 3px 10px rgba(224,112,101,0.3); border:none; transition:all 0.25s cubic-bezier(0.4, 0, 0.2, 1);">
         ⭐ Airbnb vs Hotel
     </div>
     <style>
+        #btnAirbnb:hover {{ transform: translateX(5px); }}
         @keyframes pulseBtn {{
             0%,100% {{ transform:scale(1); box-shadow:0 4px 12px rgba(224,112,101,0.35); }}
             50% {{ transform:scale(1.03); box-shadow:0 6px 18px rgba(224,112,101,0.5); }}
@@ -1236,9 +1259,12 @@ def generar_mapa_interactivo(output_dir="output"):
                 background:#9b7dc9; color:white;
                 padding:8px 16px; border-radius:20px; cursor:pointer;
                 font-family:'Segoe UI',sans-serif; font-size:11px; font-weight:600;
-                box-shadow:0 3px 10px rgba(155,125,201,0.3); border:none;">
+                box-shadow:0 3px 10px rgba(155,125,201,0.3); border:none; transition:all 0.25s cubic-bezier(0.4, 0, 0.2, 1);">
         📊 Campana de Gauss
     </div>
+    <style>
+        #btnGauss:hover {{ transform: translateX(5px); }}
+    </style>
     <div id="panelGauss" style="display:none; position:fixed; top:0; left:0; z-index:99998;
                 width:440px; height:100vh; background:#ffffff;
                 flex-direction:column; overflow-y:auto;
