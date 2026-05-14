@@ -13,7 +13,7 @@ Genera mapa de Valledupar con popups HTML enriquecidos que incluyen:
 """
 
 import folium
-from folium.plugins import MiniMap, Fullscreen, LocateControl
+from folium.plugins import MiniMap, Fullscreen, LocateControl, HeatMap
 import os
 from data.datos_festival import DATOS, NODOS_COORDENADAS, ANIOS, NODOS, DATOS_AGREGADOS
 from estadistica.descriptiva import calcular_estadisticas_nodo, calcular_estadisticas_serie_temporal
@@ -390,6 +390,45 @@ def generar_mapa_interactivo(output_dir="output"):
             ).add_to(grupo)
 
         grupo.add_to(mapa)
+
+    import random
+
+    # Mapa de calor de visitantes (basado estrictamente en datos reales de visitantes)
+    for anio in ANIOS:
+        heat_data = []
+        
+        for n in NODOS:
+            base_lat = NODOS_COORDENADAS[n]["lat"]
+            base_lon = NODOS_COORDENADAS[n]["lon"]
+            visitantes = DATOS[n][anio]["visitantes"]
+            
+            # Cada punto representa proporcionalmente una cantidad real de personas.
+            # Disminuimos la escala a 100 para generar el doble de puntos y que se vea más tupido.
+            escala = 100
+            num_puntos = int(visitantes / escala)
+            
+            for i in range(num_puntos):
+                # Mayor población concentrada en el núcleo directo para evitar dispersión en zonas no lógicas (como montañas o río)
+                es_nucleo = (i < num_puntos * 0.85)
+                # Reducimos drásticamente la desviación estándar para que no se alejen tanto
+                std_dev = 0.0002 if es_nucleo else 0.0008
+                
+                dlat = random.gauss(0, std_dev)
+                dlon = random.gauss(0, std_dev)
+                
+                # El peso es directamente proporcional a la escala para representar los visitantes exactos.
+                heat_data.append([base_lat + dlat, base_lon + dlon, escala])
+        
+        HeatMap(
+            heat_data,
+            name=f"🔥 Mapa de Calor ({anio})",
+            radius=15,
+            blur=10,
+            max_zoom=14,
+            min_opacity=0.3,
+            gradient={0.1: 'blue', 0.3: 'cyan', 0.5: 'lime', 0.7: 'yellow', 1.0: 'red'},
+            show=False
+        ).add_to(mapa)
 
     # Controles
     folium.LayerControl(collapsed=False).add_to(mapa)
