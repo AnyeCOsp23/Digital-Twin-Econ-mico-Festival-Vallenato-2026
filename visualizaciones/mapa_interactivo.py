@@ -266,14 +266,33 @@ def crear_popup_html(nodo, anio):
 
         <div style="background:#f8fafb; border-radius:10px; padding:10px; margin-bottom:8px;
                     border:1px solid #e2e8f0;">
-            <div style="font-size:10px; color:#e07065; font-weight:600; margin-bottom:4px;">
-                📈 Estadísticas Descriptivas
+            <div style="font-size:10px; color:#e07065; font-weight:600; margin-bottom:6px;">
+                📈 Estadísticas Descriptivas (Rúbrica)
             </div>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:2px; font-size:10px; color:#4a5568;">
-                <div>Media: <b style="color:#e8a838;">{est['media']:,.0f}</b></div>
-                <div>Mediana: <b style="color:#5b9bd5;">{est['mediana']:,.0f}</b></div>
-                <div>Desv. Std: <b style="color:#e07065;">{est['desviacion_std']:,.0f}</b></div>
-                <div>CV: <b style="color:#9b7dc9;">{est['coeficiente_variacion']:.1f}%</b></div>
+            <div style="font-size:10px; color:#4a5568; line-height:1.8;">
+                <div style="display:flex; justify-content:space-between; padding:2px 4px; background:#fef6e8; border-radius:4px; margin-bottom:2px;">
+                    <span>📊 <b>Media</b> (ingreso/visitante):</span>
+                    <b style="color:#e8a838;">${est['media']:,.0f} COP</b>
+                </div>
+                <div style="display:flex; justify-content:space-between; padding:2px 4px; background:#edf4fb; border-radius:4px; margin-bottom:2px;">
+                    <span>📐 <b>Mediana</b> (sesgo VIP):</span>
+                    <b style="color:#5b9bd5;">${est['mediana']:,.0f} COP</b>
+                </div>
+                <div style="display:flex; justify-content:space-between; padding:2px 4px; background:#edf8f3; border-radius:4px; margin-bottom:2px;">
+                    <span>🌎 <b>Moda</b> (procedencia):</span>
+                    <b style="color:#43b581;">{est['moda_procedencia']}</b>
+                </div>
+                <div style="display:flex; justify-content:space-between; padding:2px 4px; background:#fdf0ef; border-radius:4px; margin-bottom:2px;">
+                    <span>📉 <b>Desv. Std</b> (σ empleo):</span>
+                    <b style="color:#e07065;">{est['desviacion_std']:,.1f} empleos</b>
+                </div>
+                <div style="display:flex; justify-content:space-between; padding:2px 4px; background:#f5f0fa; border-radius:4px;">
+                    <span>⚡ <b>CV empleo</b> (riesgo):</span>
+                    <b style="color:#9b7dc9;">{est['coeficiente_variacion']:.1f}%</b>
+                </div>
+            </div>
+            <div style="margin-top:6px; font-size:9px; color:#718096; line-height:1.4; border-top:1px solid #e2e8f0; padding-top:4px;">
+                Media = Ingresos÷Visitantes · Mediana sobre gastos per cápita · σ sobre empleos 2021-2026
             </div>
             <div style="margin-top:4px; font-size:10px; color:#4a5568;">
                 Crecimiento anual prom: <b style="color:#43b581;">{st['tasa_crecimiento_anual']:.1f}%</b>
@@ -819,13 +838,161 @@ def generar_mapa_interactivo(output_dir="output"):
                 </div>
             </div>
             <div class="ab-section" data-delay="700" style="background:#f8fafb; border-radius:12px; padding:14px; margin-bottom:14px; border:1px solid #e2e8f0;">
-                <h3 style="margin:0 0 10px; color:#2d3748; font-size:13px;">📊 4. Comparación Mediana de Precios</h3>
-                <div style="text-align:center;">
-                    <img src="barras_airbnb_vs_hotel.png" alt="Comparativa Airbnb vs Hotel" title="Clic para expandir"
-                         style="width:100%; border-radius:8px; border:1px solid #e2e8f0; cursor:pointer;"
-                         onclick="window.parent.postMessage({{type: 'openLightbox', url: 'barras_airbnb_vs_hotel.png'}}, '*'); window.openLightbox && window.openLightbox('barras_airbnb_vs_hotel.png')">
+                <h3 style="margin:0 0 10px; color:#2d3748; font-size:13px;">📊 4. Crecimiento Mediana de Precios (2021-2026)</h3>
+                <div style="display:flex; justify-content:center; gap:12px; margin-bottom:10px; font-size:11px;">
+                    <label id="abToggleAirbnb" onclick="toggleAbLine('airbnb')" style="display:flex; align-items:center; gap:5px; cursor:pointer; padding:4px 12px; border-radius:6px; border:2px solid #e07065; background:#fdf0ef; transition:all 0.3s; user-select:none;">
+                        <span style="width:18px; height:3px; background:#e07065; border-radius:2px; display:inline-block;"></span>
+                        <span style="width:7px; height:7px; background:#e07065; border-radius:50%; display:inline-block;"></span>
+                        <b style="color:#e07065;">Airbnb mediana</b>
+                    </label>
+                    <label id="abToggleHotel" onclick="toggleAbLine('hotel')" style="display:flex; align-items:center; gap:5px; cursor:pointer; padding:4px 12px; border-radius:6px; border:2px solid #5b9bd5; background:#edf4fb; transition:all 0.3s; user-select:none;">
+                        <span style="width:18px; height:3px; background:#5b9bd5; border-radius:2px; display:inline-block;"></span>
+                        <span style="width:7px; height:7px; background:#5b9bd5; border-radius:50%; display:inline-block;"></span>
+                        <b style="color:#5b9bd5;">Hotel mediana</b>
+                    </label>
+                </div>
+                <div id="abChartContainer" style="position:relative; height:220px; background:#ffffff; border-radius:8px; border:1px solid #e2e8f0; overflow:hidden;">
+                    <svg id="abChartSvg" viewBox="0 0 380 200" style="width:100%; height:100%;"></svg>
+                </div>
+                <div id="abTooltip" style="display:none; position:fixed; z-index:99999; background:rgba(45,55,72,0.95); color:white; padding:8px 12px; border-radius:8px; font-size:11px; pointer-events:none; white-space:nowrap; box-shadow:0 4px 12px rgba(0,0,0,0.25);"></div>
+                <div style="margin-top:8px; display:flex; justify-content:space-between; font-size:9px; color:#718096;">
+                    <span>Crecimiento Airbnb: <b style="color:#e07065;">+{((resultado_ab['medianas_airbnb'][-1] - resultado_ab['medianas_airbnb'][0]) / resultado_ab['medianas_airbnb'][0] * 100):.0f}%</b> (5 años)</span>
+                    <span>Crecimiento Hotel: <b style="color:#5b9bd5;">+{((resultado_ab['medianas_hotel'][-1] - resultado_ab['medianas_hotel'][0]) / resultado_ab['medianas_hotel'][0] * 100):.0f}%</b> (5 años)</span>
                 </div>
             </div>
+            <script>
+            (function() {{
+                var DA = {resultado_ab['medianas_airbnb']};
+                var DH = {resultado_ab['medianas_hotel']};
+                var YRS = {resultado_ab['anios']};
+                var MAX_V = 500000;
+                var showA = true, showH = true;
+                var padL = 48, padR = 15, padT = 22, padB = 28;
+                var W = 380, H = 200;
+                var plotW = W - padL - padR;
+                var plotH = H - padT - padB;
+
+                function px(i) {{ return padL + (i / (YRS.length - 1)) * plotW; }}
+                function py(v) {{ return padT + plotH - (v / MAX_V) * plotH; }}
+                function fmt(v) {{ return '$' + (v / 1000).toFixed(0) + 'K'; }}
+
+                function buildChart() {{
+                    var svg = document.getElementById('abChartSvg');
+                    if (!svg) {{ setTimeout(buildChart, 300); return; }}
+                    svg.innerHTML = '';
+                    var ns = 'http://www.w3.org/2000/svg';
+
+                    // Grid
+                    [0, 100000, 200000, 300000, 400000, 500000].forEach(function(v) {{
+                        var y = py(v);
+                        var ln = document.createElementNS(ns, 'line');
+                        ln.setAttribute('x1', padL); ln.setAttribute('x2', W - padR);
+                        ln.setAttribute('y1', y); ln.setAttribute('y2', y);
+                        ln.setAttribute('stroke', '#e2e8f0'); ln.setAttribute('stroke-width', '0.8');
+                        if (v > 0 && v < 500000) ln.setAttribute('stroke-dasharray', '3,3');
+                        svg.appendChild(ln);
+                        var t = document.createElementNS(ns, 'text');
+                        t.setAttribute('x', padL - 4); t.setAttribute('y', y + 3);
+                        t.setAttribute('text-anchor', 'end'); t.setAttribute('font-size', '8');
+                        t.setAttribute('fill', '#a0aec0'); t.setAttribute('font-family', 'Segoe UI, sans-serif');
+                        t.textContent = fmt(v);
+                        svg.appendChild(t);
+                    }});
+                    // X labels
+                    YRS.forEach(function(yr, i) {{
+                        var t = document.createElementNS(ns, 'text');
+                        t.setAttribute('x', px(i)); t.setAttribute('y', H - 6);
+                        t.setAttribute('text-anchor', 'middle'); t.setAttribute('font-size', '9');
+                        t.setAttribute('font-weight', '600'); t.setAttribute('fill', '#718096');
+                        t.setAttribute('font-family', 'Segoe UI, sans-serif');
+                        t.textContent = yr;
+                        svg.appendChild(t);
+                    }});
+
+                    function drawSeries(data, color, id, vis) {{
+                        var g = document.createElementNS(ns, 'g');
+                        g.setAttribute('id', id);
+                        g.style.opacity = vis ? '1' : '0';
+                        g.style.transition = 'opacity 0.5s ease';
+                        // Area fill
+                        var ap = 'M ' + px(0) + ' ' + py(data[0]);
+                        for (var i = 1; i < data.length; i++) ap += ' L ' + px(i) + ' ' + py(data[i]);
+                        ap += ' L ' + px(data.length - 1) + ' ' + py(0) + ' L ' + px(0) + ' ' + py(0) + ' Z';
+                        var area = document.createElementNS(ns, 'path');
+                        area.setAttribute('d', ap); area.setAttribute('fill', color); area.setAttribute('opacity', '0.08');
+                        g.appendChild(area);
+                        // Line
+                        var pts = data.map(function(v, i) {{ return px(i) + ',' + py(v); }}).join(' ');
+                        var pl = document.createElementNS(ns, 'polyline');
+                        pl.setAttribute('points', pts); pl.setAttribute('fill', 'none');
+                        pl.setAttribute('stroke', color); pl.setAttribute('stroke-width', '2.5');
+                        pl.setAttribute('stroke-linecap', 'round'); pl.setAttribute('stroke-linejoin', 'round');
+                        pl.classList.add('ab-line-anim');
+                        g.appendChild(pl);
+                        // Dots + labels
+                        data.forEach(function(v, i) {{
+                            var cx = px(i), cy = py(v);
+                            // Hover target
+                            var ht = document.createElementNS(ns, 'circle');
+                            ht.setAttribute('cx', cx); ht.setAttribute('cy', cy); ht.setAttribute('r', '12');
+                            ht.setAttribute('fill', 'transparent'); ht.setAttribute('style', 'cursor:pointer;');
+                            ht.setAttribute('data-tip', (id === 'lineAirbnb' ? '🏠 Airbnb' : '🏨 Hotel') + ' ' + YRS[i] + ': $' + v.toLocaleString('es-CO') + ' COP/noche');
+                            ht.onmouseenter = function(e) {{
+                                var tip = document.getElementById('abTooltip');
+                                if (tip) {{ tip.textContent = this.getAttribute('data-tip'); tip.style.display = 'block'; tip.style.left = (e.clientX + 14) + 'px'; tip.style.top = (e.clientY - 38) + 'px'; }}
+                            }};
+                            ht.onmouseleave = function() {{ var tip = document.getElementById('abTooltip'); if (tip) tip.style.display = 'none'; }};
+                            g.appendChild(ht);
+                            // Visible dot
+                            var c = document.createElementNS(ns, 'circle');
+                            c.setAttribute('cx', cx); c.setAttribute('cy', cy); c.setAttribute('r', '5');
+                            c.setAttribute('fill', '#fff'); c.setAttribute('stroke', color); c.setAttribute('stroke-width', '2.5');
+                            c.setAttribute('style', 'pointer-events:none;');
+                            g.appendChild(c);
+                            // Price label
+                            var lbl = document.createElementNS(ns, 'text');
+                            lbl.setAttribute('x', cx); lbl.setAttribute('y', cy - 10);
+                            lbl.setAttribute('text-anchor', 'middle'); lbl.setAttribute('font-size', '8');
+                            lbl.setAttribute('font-weight', '700'); lbl.setAttribute('fill', color);
+                            lbl.setAttribute('font-family', 'Segoe UI, sans-serif');
+                            lbl.textContent = fmt(v);
+                            g.appendChild(lbl);
+                        }});
+                        svg.appendChild(g);
+                        // Animate line drawing
+                        setTimeout(function() {{
+                            var len = pl.getTotalLength();
+                            pl.style.strokeDasharray = len;
+                            pl.style.strokeDashoffset = len;
+                            pl.getBoundingClientRect();
+                            pl.style.transition = 'stroke-dashoffset 1.5s ease';
+                            pl.style.strokeDashoffset = '0';
+                        }}, 100);
+                    }}
+                    drawSeries(DA, '#e07065', 'lineAirbnb', showA);
+                    drawSeries(DH, '#5b9bd5', 'lineHotel', showH);
+                }}
+
+                window.toggleAbLine = function(which) {{
+                    if (which === 'airbnb') {{
+                        showA = !showA;
+                        var g = document.getElementById('lineAirbnb');
+                        var btn = document.getElementById('abToggleAirbnb');
+                        if (g) g.style.opacity = showA ? '1' : '0';
+                        if (btn) {{ btn.style.background = showA ? '#fdf0ef' : '#f7f7f7'; btn.style.borderColor = showA ? '#e07065' : '#cbd5e0'; btn.style.opacity = showA ? '1' : '0.45'; }}
+                    }} else {{
+                        showH = !showH;
+                        var g = document.getElementById('lineHotel');
+                        var btn = document.getElementById('abToggleHotel');
+                        if (g) g.style.opacity = showH ? '1' : '0';
+                        if (btn) {{ btn.style.background = showH ? '#edf4fb' : '#f7f7f7'; btn.style.borderColor = showH ? '#5b9bd5' : '#cbd5e0'; btn.style.opacity = showH ? '1' : '0.45'; }}
+                    }}
+                }};
+
+                window._buildAbChart = buildChart;
+                setTimeout(function() {{ var p = document.getElementById('panelAirbnb'); if (p && p.style.display !== 'none') buildChart(); }}, 1000);
+            }})();
+            </script>
             <div class="ab-section" data-delay="900" style="background:#fdf0ef; border-radius:12px; padding:16px; border:1px solid #e0706533; text-align:center;">
                 <div style="font-size:12px; color:#e07065; font-weight:600; margin-bottom:6px;">⚠️ 5. CONCLUSIÓN: SECTOR CON MAYOR ESPECULACIÓN</div>
                 <div style="font-size:28px; font-weight:700; color:#e07065; margin:8px 0;">▶ {sector_v.upper()} ◀</div>
@@ -853,6 +1020,10 @@ def generar_mapa_interactivo(output_dir="output"):
                 s.classList.add('visible');
             }}, delay);
         }});
+        // Trigger dynamic chart animation
+        if (typeof window._buildAbChart === 'function') {{
+            setTimeout(window._buildAbChart, 600);
+        }}
     }}
     function closeAirbnbPanel() {{
         var panel = document.getElementById('panelAirbnb');

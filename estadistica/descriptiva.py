@@ -9,7 +9,6 @@ Para cada nodo y año del Festival.
 """
 
 import numpy as np
-from scipy import stats as sp_stats
 import pandas as pd
 from data.datos_festival import DATOS, ANIOS, NODOS
 
@@ -17,6 +16,14 @@ from data.datos_festival import DATOS, ANIOS, NODOS
 def calcular_estadisticas_nodo(nodo, anio):
     """
     Calcula estadísticas descriptivas para un nodo y año específico.
+    
+    Según la rúbrica del proyecto:
+    - Media: Ingreso promedio por visitante (ingresos / visitantes)
+    - Mediana: Para identificar sesgos por consumos de alto valor (VIP)
+      → Se calcula sobre los valores de consumo/gasto del nodo
+    - Moda: Departamento de procedencia predominante de los turistas
+    - Desviación Estándar: Como medida de volatilidad y riesgo del empleo
+      → Se calcula sobre los empleos temporales de todos los años del nodo
     
     Parámetros:
     -----------
@@ -29,57 +36,57 @@ def calcular_estadisticas_nodo(nodo, anio):
     """
     datos = DATOS[nodo][anio]
     
-    # Variables numéricas para análisis
-    valores_numericos = [
-        datos["visitantes"],
-        datos["ingresos_millones"],
-        datos["gasto_promedio"],
-        datos["ocupacion_hotelera"],
-        datos["empleos_temporales"],
-        datos["precio_hospedaje_promedio"],
-        datos["actividad_comercial_millones"],
-        datos["impacto_transporte_millones"]
+    # ---- CÁLCULOS SEGÚN RÚBRICA ----
+    
+    # 1. MEDIA: Ingreso promedio por visitante
+    #    Fórmula: Media = Ingresos totales (en COP) / Visitantes
+    #    ingresos_millones está en millones de COP, se convierte a COP
+    ingresos_cop = datos["ingresos_millones"] * 1_000_000  # Convertir a COP
+    visitantes = datos["visitantes"]
+    media_ingreso_por_visitante = ingresos_cop / visitantes if visitantes > 0 else 0
+    
+    # 2. MEDIANA: Para identificar sesgos por consumos de alto valor (VIP)
+    #    Se calcula sobre los valores de consumo/gasto asociados al nodo:
+    #    gasto_promedio, precio_hospedaje, actividad_comercial, impacto_transporte
+    #    (todos representan niveles de consumo/gasto por persona o sector)
+    valores_consumo = [
+        datos["gasto_promedio"],             # Gasto promedio por visitante
+        datos["precio_hospedaje_promedio"],   # Precio hospedaje por noche
+        datos["actividad_comercial_millones"] * 1_000_000 / visitantes if visitantes > 0 else 0,  # Act. comercial per cápita
+        datos["impacto_transporte_millones"] * 1_000_000 / visitantes if visitantes > 0 else 0,   # Transporte per cápita
     ]
+    arr_consumo = np.array(valores_consumo, dtype=float)
+    mediana_consumo = np.median(arr_consumo)
     
-    arr = np.array(valores_numericos, dtype=float)
-    
-    # ---- CÁLCULOS DE ESTADÍSTICA DESCRIPTIVA ----
-    
-    # 1. Media aritmética
-    media = np.mean(arr)
-    
-    # 2. Mediana
-    mediana = np.median(arr)
-    
-    # 3. Moda (procedencia predominante)
+    # 3. MODA: Departamento de procedencia predominante de turistas
     moda_procedencia = datos["procedencia_moda"]
-    # Moda numérica (si aplica)
-    moda_result = sp_stats.mode(arr, keepdims=True)
-    moda_numerica = moda_result.mode[0] if len(moda_result.mode) > 0 else media
     
-    # 4. Desviación estándar
-    desviacion_std = np.std(arr, ddof=1)  # ddof=1 para muestra
+    # 4. DESVIACIÓN ESTÁNDAR: Volatilidad y riesgo del empleo generado
+    #    Se calcula sobre los empleos temporales de TODOS los años del nodo
+    #    Fórmula: σ = √[Σ(xᵢ - x̄)² / (n-1)]  (muestral, ddof=1)
+    empleos_todos_anios = [DATOS[nodo][a]["empleos_temporales"] for a in ANIOS]
+    arr_empleos = np.array(empleos_todos_anios, dtype=float)
+    desviacion_std_empleos = np.std(arr_empleos, ddof=1)
+    media_empleos = np.mean(arr_empleos)
+    varianza_empleos = np.var(arr_empleos, ddof=1)
+    rango_empleos = np.max(arr_empleos) - np.min(arr_empleos)
     
-    # 5. Varianza
-    varianza = np.var(arr, ddof=1)
-    
-    # 6. Rango
-    rango = np.max(arr) - np.min(arr)
-    
-    # 7. Coeficiente de variación (CV)
-    cv = (desviacion_std / media) * 100 if media != 0 else 0
+    # CV del empleo: mide el riesgo relativo
+    cv_empleos = (desviacion_std_empleos / media_empleos) * 100 if media_empleos != 0 else 0
     
     return {
         "nodo": nodo,
         "anio": anio,
-        "media": round(media, 2),
-        "mediana": round(mediana, 2),
+        "media": round(media_ingreso_por_visitante, 2),
+        "mediana": round(mediana_consumo, 2),
         "moda_procedencia": moda_procedencia,
-        "moda_numerica": round(moda_numerica, 2),
-        "desviacion_std": round(desviacion_std, 2),
-        "varianza": round(varianza, 2),
-        "rango": round(rango, 2),
-        "coeficiente_variacion": round(cv, 2),
+        "desviacion_std": round(desviacion_std_empleos, 2),
+        "varianza": round(varianza_empleos, 2),
+        "rango": round(rango_empleos, 2),
+        "coeficiente_variacion": round(cv_empleos, 2),
+        "media_empleos": round(media_empleos, 2),
+        "empleos_serie": empleos_todos_anios,
+        "empleos_actual": datos["empleos_temporales"],
         "datos_originales": datos,
         "fuente": datos["fuente"]
     }
@@ -153,11 +160,11 @@ def generar_tabla_resumen():
                 "Ocupación Hotelera (%)": d["ocupacion_hotelera"],
                 "Empleos Temporales": d["empleos_temporales"],
                 "Precio Hospedaje (COP)": d["precio_hospedaje_promedio"],
-                "Media": est["media"],
-                "Mediana": est["mediana"],
-                "Desv. Estándar": est["desviacion_std"],
-                "CV (%)": est["coeficiente_variacion"],
-                "Procedencia Moda": est["moda_procedencia"],
+                "Media (Ingreso/Visitante COP)": est["media"],
+                "Mediana (Sesgo VIP COP)": est["mediana"],
+                "Desv. Std (σ Empleo)": est["desviacion_std"],
+                "CV Empleo (%)": est["coeficiente_variacion"],
+                "Moda (Procedencia)": est["moda_procedencia"],
                 "Fuente": est["fuente"]
             })
     
@@ -165,18 +172,18 @@ def generar_tabla_resumen():
 
 
 def imprimir_estadisticas(nodo, anio):
-    """Imprime las estadísticas descriptivas de forma legible."""
+    """Imprime las estadísticas descriptivas de forma legible (según rúbrica)."""
     est = calcular_estadisticas_nodo(nodo, anio)
     print(f"\n{'='*70}")
     print(f"  ESTADÍSTICA DESCRIPTIVA: {nodo} - {anio}")
     print(f"{'='*70}")
-    print(f"  Media:                    {est['media']:>15,.2f}")
-    print(f"  Mediana:                  {est['mediana']:>15,.2f}")
-    print(f"  Moda (procedencia):       {est['moda_procedencia']:>15s}")
-    print(f"  Desviación Estándar:      {est['desviacion_std']:>15,.2f}")
-    print(f"  Varianza:                 {est['varianza']:>15,.2f}")
-    print(f"  Rango:                    {est['rango']:>15,.2f}")
-    print(f"  Coef. de Variación (%):   {est['coeficiente_variacion']:>15.2f}%")
+    print(f"  Media (ingreso/visitante): ${est['media']:>12,.0f} COP")
+    print(f"  Mediana (sesgo VIP):       ${est['mediana']:>12,.0f} COP")
+    print(f"  Moda (procedencia):        {est['moda_procedencia']:>13s}")
+    print(f"  Desv. Std (σ empleo):      {est['desviacion_std']:>13,.2f} empleos")
+    print(f"  Varianza empleo:           {est['varianza']:>13,.2f}")
+    print(f"  Rango empleo:              {est['rango']:>13,.0f}")
+    print(f"  CV empleo (riesgo):        {est['coeficiente_variacion']:>13.2f}%")
     print(f"  Fuente: {est['fuente']}")
     print(f"{'='*70}")
     return est
