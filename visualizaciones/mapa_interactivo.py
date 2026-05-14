@@ -439,16 +439,18 @@ def generar_mapa_interactivo(output_dir="output"):
                 # El peso es directamente proporcional a la escala para representar los visitantes exactos.
                 heat_data.append([base_lat + dlat, base_lon + dlon, escala])
         
+        # Envolver HeatMap en FeatureGroup para que LayerControl pueda
+        # toglear la capa sin necesidad de recargar la página
+        fg_heat = folium.FeatureGroup(name=f"🔥 Mapa de Calor ({anio})", show=False)
         HeatMap(
             heat_data,
-            name=f"🔥 Mapa de Calor ({anio})",
             radius=15,
             blur=10,
             max_zoom=14,
             min_opacity=0.3,
-            gradient={0.1: 'blue', 0.3: 'cyan', 0.5: 'lime', 0.7: 'yellow', 1.0: 'red'},
-            show=False
-        ).add_to(mapa)
+            gradient={0.1: 'blue', 0.3: 'cyan', 0.5: 'lime', 0.7: 'yellow', 1.0: 'red'}
+        ).add_to(fg_heat)
+        fg_heat.add_to(mapa)
 
     # Controles
     folium.LayerControl(collapsed=False).add_to(mapa)
