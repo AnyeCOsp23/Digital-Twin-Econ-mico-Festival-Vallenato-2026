@@ -720,35 +720,6 @@ def generar_mapa_interactivo(output_dir="output"):
     sector_v = resultado_ab['sector_mas_volatil']
     dif_cv = abs(stats_a['cv_porcentaje'] - stats_h['cv_porcentaje'])
 
-    # Generar barras de medianas HTML
-    medianas_bars_html = ""
-    max_med = max(max(resultado_ab['medianas_airbnb']), max(resultado_ab['medianas_hotel']))
-    for i, anio in enumerate(ANIOS):
-        ma = resultado_ab['medianas_airbnb'][i]
-        mh = resultado_ab['medianas_hotel'][i]
-        pct_a = (ma / max_med) * 100
-        pct_h = (mh / max_med) * 100
-        medianas_bars_html += f'''
-        <div style="margin-bottom:8px;">
-            <div style="font-size:11px; color:#4a5568; margin-bottom:2px; font-weight:600;">{anio}</div>
-            <div style="display:flex; align-items:center; gap:6px; margin-bottom:2px;">
-                <span style="font-size:9px; color:#e07065; width:45px;">Airbnb</span>
-                <div style="flex:1; background:#edf2f7; border-radius:4px; height:16px; overflow:hidden;">
-                    <div style="width:{pct_a:.0f}%; height:100%; background:#e07065;
-                                border-radius:4px; transition:width 1s ease;"></div>
-                </div>
-                <span style="font-size:10px; color:#e07065; font-weight:600; width:75px; text-align:right;">${ma:,}</span>
-            </div>
-            <div style="display:flex; align-items:center; gap:6px;">
-                <span style="font-size:9px; color:#43b581; width:45px;">Hotel</span>
-                <div style="flex:1; background:#edf2f7; border-radius:4px; height:16px; overflow:hidden;">
-                    <div style="width:{pct_h:.0f}%; height:100%; background:#43b581;
-                                border-radius:4px; transition:width 1s ease;"></div>
-                </div>
-                <span style="font-size:10px; color:#43b581; font-weight:600; width:75px; text-align:right;">${mh:,}</span>
-            </div>
-        </div>'''
-
     # Generar tabla de rangos 2026
     d26 = resultado_ab['datos_2026']
     rango_a = d26['airbnb_max'] - d26['airbnb_min']
@@ -800,7 +771,7 @@ def generar_mapa_interactivo(output_dir="output"):
                     border-bottom:1px solid #e2e8f0; position:sticky; top:0; z-index:1;">
             <div style="display:flex; justify-content:space-between; align-items:center;">
                 <div>
-                    <h2 style="margin:0; color:#e07065; font-size:15px;">⭐ PUNTO EXTRA (+0.5)</h2>
+                    <h2 style="margin:0; color:#e07065; font-size:15px;">⭐ Airbnb vs Hotel</h2>
                     <p style="margin:2px 0 0; color:#718096; font-size:10px;">Análisis Airbnb vs Hotelería Tradicional</p>
                 </div>
                 <span onclick="closeAirbnbPanel()" style="color:#e07065; font-size:24px; cursor:pointer; padding:4px 8px; line-height:1;">&times;</span>
@@ -808,11 +779,7 @@ def generar_mapa_interactivo(output_dir="output"):
         </div>
         <div style="padding:16px 20px;">
             <div class="ab-section" data-delay="100" style="background:#f8fafb; border-radius:12px; padding:14px; margin-bottom:14px; border:1px solid #e2e8f0;">
-                <h3 style="margin:0 0 10px; color:#2d3748; font-size:13px;">📊 1. Crecimiento Mediana de Precios (COP/noche)</h3>
-                {medianas_bars_html}
-            </div>
-            <div class="ab-section" data-delay="300" style="background:#f8fafb; border-radius:12px; padding:14px; margin-bottom:14px; border:1px solid #e2e8f0;">
-                <h3 style="margin:0 0 12px; color:#2d3748; font-size:13px;">📈 2. Desviación Estándar (σ) – ¿Cuál tiene más "ruido"?</h3>
+                <h3 style="margin:0 0 12px; color:#2d3748; font-size:13px;">📈 1. Desviación Estándar (σ) – ¿Cuál tiene más "ruido"?</h3>
                 <div style="display:flex; gap:10px;">
                     <div style="flex:1; background:#fdf0ef; border:1px solid #e0706544; border-radius:10px; padding:12px; text-align:center;">
                         <div style="font-size:10px; color:#e07065; font-weight:600;">🏠 AIRBNB</div>
@@ -827,8 +794,8 @@ def generar_mapa_interactivo(output_dir="output"):
                 </div>
                 <div style="text-align:center; margin-top:8px; font-size:11px; color:#e8a838;">⚠️ Airbnb tiene σ más alta → MÁS RUIDO en precios</div>
             </div>
-            <div class="ab-section" data-delay="500" style="background:#f8fafb; border-radius:12px; padding:14px; margin-bottom:14px; border:1px solid #e2e8f0;">
-                <h3 style="margin:0 0 10px; color:#2d3748; font-size:13px;">💰 3. Rango de Precios Festival 2026</h3>
+            <div class="ab-section" data-delay="300" style="background:#f8fafb; border-radius:12px; padding:14px; margin-bottom:14px; border:1px solid #e2e8f0;">
+                <h3 style="margin:0 0 10px; color:#2d3748; font-size:13px;">💰 2. Rango de Precios Festival 2026</h3>
                 <table style="width:100%; border-collapse:collapse; font-size:11px; color:#2d3748;">
                     <tr style="background:#edf2f7;"><th style="padding:6px 8px; text-align:left; border-bottom:1px solid #e2e8f0; color:#718096;">Métrica</th><th style="padding:6px; text-align:right; color:#e07065; border-bottom:1px solid #e2e8f0;">Airbnb</th><th style="padding:6px; text-align:right; color:#43b581; border-bottom:1px solid #e2e8f0;">Hotel</th></tr>
                     <tr><td style="padding:5px 8px; border-bottom:1px solid #edf2f7;">Precio Mínimo</td><td style="padding:5px; text-align:right; border-bottom:1px solid #edf2f7;">${d26['airbnb_min']:,}</td><td style="padding:5px; text-align:right; border-bottom:1px solid #edf2f7;">${d26['hotel_min']:,}</td></tr>
@@ -838,8 +805,8 @@ def generar_mapa_interactivo(output_dir="output"):
                 </table>
                 <div style="text-align:center; margin-top:8px; font-size:11px; color:#e8a838;">Airbnb tiene un rango {rango_a/rango_h:.1f}x mayor → especulación en temporada alta</div>
             </div>
-            <div class="ab-section" data-delay="700" style="background:#f8fafb; border-radius:12px; padding:14px; margin-bottom:14px; border:1px solid #e2e8f0;">
-                <h3 style="margin:0 0 10px; color:#2d3748; font-size:13px;">📉 4. Coeficiente de Variación (CV%)</h3>
+            <div class="ab-section" data-delay="500" style="background:#f8fafb; border-radius:12px; padding:14px; margin-bottom:14px; border:1px solid #e2e8f0;">
+                <h3 style="margin:0 0 10px; color:#2d3748; font-size:13px;">📉 3. Coeficiente de Variación (CV%)</h3>
                 <div style="display:flex; gap:10px; margin-bottom:8px;">
                     <div style="flex:1; text-align:center;"><div style="font-size:10px; color:#e07065;">AIRBNB</div><div style="font-size:28px; font-weight:700; color:#e07065;">{stats_a['cv_porcentaje']:.2f}%</div></div>
                     <div style="display:flex; align-items:center; font-size:20px; color:#a0aec0;">vs</div>
@@ -850,8 +817,16 @@ def generar_mapa_interactivo(output_dir="output"):
                     <div class="ab-bar-fill" style="width:{stats_h['cv_porcentaje']/(stats_a['cv_porcentaje']+stats_h['cv_porcentaje'])*100:.0f}%; background:#43b581; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:600; color:white;">Hotel</div>
                 </div>
             </div>
+            <div class="ab-section" data-delay="700" style="background:#f8fafb; border-radius:12px; padding:14px; margin-bottom:14px; border:1px solid #e2e8f0;">
+                <h3 style="margin:0 0 10px; color:#2d3748; font-size:13px;">📊 4. Comparación Mediana de Precios</h3>
+                <div style="text-align:center;">
+                    <img src="barras_airbnb_vs_hotel.png" alt="Comparativa Airbnb vs Hotel" title="Clic para expandir"
+                         style="width:100%; border-radius:8px; border:1px solid #e2e8f0; cursor:pointer;"
+                         onclick="window.parent.postMessage({{type: 'openLightbox', url: 'barras_airbnb_vs_hotel.png'}}, '*'); window.openLightbox && window.openLightbox('barras_airbnb_vs_hotel.png')">
+                </div>
+            </div>
             <div class="ab-section" data-delay="900" style="background:#fdf0ef; border-radius:12px; padding:16px; border:1px solid #e0706533; text-align:center;">
-                <div style="font-size:12px; color:#e07065; font-weight:600; margin-bottom:6px;">⚠️ CONCLUSIÓN: SECTOR CON MAYOR ESPECULACIÓN</div>
+                <div style="font-size:12px; color:#e07065; font-weight:600; margin-bottom:6px;">⚠️ 5. CONCLUSIÓN: SECTOR CON MAYOR ESPECULACIÓN</div>
                 <div style="font-size:28px; font-weight:700; color:#e07065; margin:8px 0;">▶ {sector_v.upper()} ◀</div>
                 <div style="font-size:11px; color:#4a5568; line-height:1.5;">Diferencia de <b style="color:#e8a838;">{dif_cv:.2f} puntos porcentuales</b> en CV.<br>Los precios de <b style="color:#e07065;">{sector_v}</b> presentan <b style="color:#e07065;">MAYOR VOLATILIDAD</b><br>(especulación de precios) durante el Festival 2026.</div>
                 <div style="margin-top:10px; padding-top:8px; border-top:1px solid #e2e8f0; font-size:9px; color:#a0aec0; line-height:1.4;">Fuente: RCN Noticias, RTA Noticias, CC Valledupar<br>Método: Desviación Estándar y Coeficiente de Variación sobre medianas 2021-2026</div>

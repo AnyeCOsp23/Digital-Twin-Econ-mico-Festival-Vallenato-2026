@@ -179,36 +179,49 @@ def barras_comparativas_airbnb_hotel(guardar=True, output_dir="output"):
     medianas_airbnb = [AIRBNB_VS_HOTEL[a]["airbnb_mediana"] for a in ANIOS]
     medianas_hotel = [AIRBNB_VS_HOTEL[a]["hotel_mediana"] for a in ANIOS]
     
-    bars1 = ax.bar(x - width/2, medianas_airbnb, width, label='Airbnb',
-                   color='#ff6b35', edgecolor='white', linewidth=0.5, alpha=0.85)
-    bars2 = ax.bar(x + width/2, medianas_hotel, width, label='Hotel',
-                   color='#4ecdc4', edgecolor='white', linewidth=0.5, alpha=0.85)
+    # Línea Airbnb
+    ax.plot(ANIOS, medianas_airbnb, marker='o', linewidth=2.5, markersize=8,
+            color='#e07065', label='Airbnb', zorder=5)
     
-    for bar, val in zip(bars1, medianas_airbnb):
-        ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 5000,
-               f'${val:,}', ha='center', va='bottom', fontsize=8,
-               fontweight='bold', color='#ff6b35', rotation=45)
-    for bar, val in zip(bars2, medianas_hotel):
-        ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 5000,
-               f'${val:,}', ha='center', va='bottom', fontsize=8,
-               fontweight='bold', color='#4ecdc4', rotation=45)
+    # Línea Hotel
+    ax.plot(ANIOS, medianas_hotel, marker='s', linewidth=2.5, markersize=8,
+            color='#43b581', label='Hotel', zorder=5)
     
-    ax.set_xlabel('Año', fontsize=13, labelpad=10)
-    ax.set_ylabel('Mediana de Precio por Noche (COP)', fontsize=13, labelpad=10)
+    # Anotar valores en los puntos
+    for i, txt in enumerate(medianas_airbnb):
+        ax.annotate(f'${txt:,}', (ANIOS[i], medianas_airbnb[i]),
+                    xytext=(0, 10), textcoords='offset points', ha='center',
+                    fontsize=8, fontweight='bold', color='#e07065')
+    for i, txt in enumerate(medianas_hotel):
+        ax.annotate(f'${txt:,}', (ANIOS[i], medianas_hotel[i]),
+                    xytext=(0, -15), textcoords='offset points', ha='center',
+                    fontsize=8, fontweight='bold', color='#43b581')
+    
+    ax.set_xlabel('Año', fontsize=13, labelpad=10, color='#2d3748')
+    ax.set_ylabel('Mediana de Precio por Noche (COP)', fontsize=13, labelpad=10, color='#2d3748')
     ax.set_title('Comparación Airbnb vs Hotelería\nMediana de Precios por Noche – Festival Vallenato 2021-2026',
-                fontsize=15, fontweight='bold', pad=15)
-    ax.set_xticks(x)
-    ax.set_xticklabels(ANIOS)
-    ax.legend(fontsize=11, facecolor='#1a1a2e', edgecolor='#333',
-              labelcolor='white', framealpha=0.9)
+                fontsize=15, fontweight='bold', pad=15, color='#2d3748')
+    ax.set_xticks(ANIOS)
+    ax.tick_params(colors='#4a5568')
+    ax.legend(fontsize=11, facecolor='#ffffff', edgecolor='#cbd5e0',
+              labelcolor='#2d3748', framealpha=0.9)
     ax.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, _: f'${x:,.0f}'))
-    ax.grid(True, axis='y')
+    ax.grid(True, axis='y', color='#cbd5e0', alpha=0.5)
+    
+    # Sobrescribir colores de fondo oscuros globales
+    fig.patch.set_facecolor('#ffffff')
+    ax.set_facecolor('#ffffff')
+    ax.spines['bottom'].set_color('#cbd5e0')
+    ax.spines['left'].set_color('#cbd5e0')
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    
     plt.tight_layout()
     
     if guardar:
         os.makedirs(output_dir, exist_ok=True)
         plt.savefig(os.path.join(output_dir, "barras_airbnb_vs_hotel.png"),
-                   dpi=150, bbox_inches='tight', facecolor='#0a0a1a')
+                   dpi=150, bbox_inches='tight', facecolor='#ffffff')
         print("  ✓ Barras comparativas Airbnb vs Hotel guardadas")
     plt.close(fig)
     return fig
