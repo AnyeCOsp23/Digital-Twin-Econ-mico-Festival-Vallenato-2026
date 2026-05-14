@@ -452,17 +452,139 @@ def generar_mapa_interactivo(output_dir="output"):
         ).add_to(fg_heat)
         fg_heat.add_to(mapa)
 
-    # Controles
+    # Controles - Panel de capas con estilo Premium
+    css_layer_control = """
+    <style>
+        /* Panel de control de capas (LayerControl) rediseñado */
+        .leaflet-control-layers {
+            border: none !important;
+            border-radius: 16px !important;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12) !important;
+            background: rgba(255, 255, 255, 0.95) !important;
+            backdrop-filter: blur(10px) !important;
+            font-family: 'Segoe UI', Arial, sans-serif !important;
+            color: #2d3748 !important;
+            padding: 4px !important;
+        }
+        .leaflet-control-layers-expanded {
+            padding: 16px 20px !important;
+            min-width: 220px;
+        }
+        .leaflet-control-layers-list {
+            margin: 0 !important;
+            max-height: 55vh;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding-right: 8px;
+        }
+        .leaflet-control-layers-list::-webkit-scrollbar { width: 5px; }
+        .leaflet-control-layers-list::-webkit-scrollbar-track { background: #f8fafb; border-radius: 4px; }
+        .leaflet-control-layers-list::-webkit-scrollbar-thumb { background: #cbd5e0; border-radius: 4px; }
+        
+        .leaflet-control-layers-base {
+            padding-bottom: 10px;
+        }
+        .leaflet-control-layers-base::before {
+            content: '🗺️ Mapas Base';
+            display: block;
+            font-weight: 700;
+            font-size: 13px;
+            color: #718096;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .leaflet-control-layers-separator {
+            border-top: 1px dashed #e2e8f0 !important;
+            margin: 12px 0 !important;
+        }
+        .leaflet-control-layers-overlays {
+            padding-top: 5px;
+        }
+        .leaflet-control-layers-overlays::before {
+            content: '📊 Capas y Años';
+            display: block;
+            font-weight: 700;
+            font-size: 13px;
+            color: #718096;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .leaflet-control-layers label {
+            display: flex !important;
+            align-items: center;
+            font-size: 13px !important;
+            font-weight: 500;
+            padding: 6px 10px !important;
+            margin: 2px 0 !important;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .leaflet-control-layers label:hover {
+            background: #edf2f7;
+            transform: translateX(2px);
+        }
+        .leaflet-control-layers input[type="radio"],
+        .leaflet-control-layers input[type="checkbox"] {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            min-width: 18px;
+            border: 2px solid #a0aec0;
+            border-radius: 4px;
+            margin-right: 12px !important;
+            position: relative;
+            cursor: pointer;
+            outline: none;
+            transition: all 0.2s ease;
+            background: white;
+        }
+        .leaflet-control-layers input[type="radio"] {
+            border-radius: 50%;
+        }
+        .leaflet-control-layers input[type="radio"]:checked {
+            border-color: #5b9bd5;
+            background: white;
+        }
+        .leaflet-control-layers input[type="radio"]:checked::after {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 8px;
+            height: 8px;
+            background: #5b9bd5;
+            border-radius: 50%;
+        }
+        .leaflet-control-layers input[type="checkbox"]:checked {
+            background: #43b581;
+            border-color: #43b581;
+        }
+        .leaflet-control-layers input[type="checkbox"]:checked::after {
+            content: '✓';
+            position: absolute;
+            color: white;
+            font-size: 12px;
+            top: -2px;
+            left: 3px;
+            font-weight: bold;
+        }
+    </style>
+    """
+    mapa.get_root().html.add_child(folium.Element(css_layer_control))
     folium.LayerControl(collapsed=False).add_to(mapa)
 
-    # Minimapa
+    # Minimapa (más pequeño para no obstruir)
     MiniMap(tile_layer=folium.TileLayer(
         tiles='https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
         attr='CartoDB'
-    ), toggle_display=True, position='bottomright').add_to(mapa)
+    ), toggle_display=True, position='bottomright', width=100, height=100).add_to(mapa)
 
-    # Pantalla completa
-    Fullscreen(position='topright').add_to(mapa)
+    # Pantalla completa (movida a la izquierda para evitar superposición con el control de capas)
+    Fullscreen(position='topleft').add_to(mapa)
 
     # Leyenda + Navegador de nodos interactivo
     total_2026 = DATOS_AGREGADOS[2026]
@@ -561,6 +683,24 @@ def generar_mapa_interactivo(output_dir="output"):
         }}
         if (document.readyState === 'complete') moveToMap();
         else window.addEventListener('load', moveToMap);
+    }})();
+
+    // ── Agregar subtítulo a los mapas de calor ────────
+    (function() {{
+        function addHeatmapSubtitle() {{
+            var labels = document.querySelectorAll('.leaflet-control-layers-overlays label');
+            if (labels.length === 0) {{ setTimeout(addHeatmapSubtitle, 200); return; }}
+            for (var i = 0; i < labels.length; i++) {{
+                if (labels[i].textContent.includes('Mapa de Calor')) {{
+                    var div = document.createElement('div');
+                    div.innerHTML = '<div style="font-size:11px; color:#e07065; font-weight:700; margin:12px 0 4px; padding-top:10px; border-top:1px dashed #e2e8f0; letter-spacing: 0.5px;">🔥 MAPAS DE CALOR</div><div style="font-size:9px; color:#718096; margin-bottom:8px; line-height:1.3; padding-right:10px;">Densidad por número de visitantes.</div>';
+                    labels[i].parentNode.insertBefore(div, labels[i]);
+                    break;
+                }}
+            }}
+        }}
+        if (document.readyState === 'complete') addHeatmapSubtitle();
+        else window.addEventListener('load', addHeatmapSubtitle);
     }})();
 
     // ── Comparación multi-año: escucha los checkboxes del LayerControl ────────
