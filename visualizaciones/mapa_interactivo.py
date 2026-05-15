@@ -370,6 +370,32 @@ def generar_mapa_interactivo(output_dir="output"):
     """
     mapa.get_root().html.add_child(folium.Element(titulo_html))
 
+    # FeatureGroup base permanente (siempre visible, sin info detallada)
+    grupo_base = folium.FeatureGroup(name="📍 Nodos Base", show=True, control=False)
+    for nodo in NODOS:
+        coord = NODOS_COORDENADAS[nodo]
+        popup_simple = f"""
+        <div style="font-family:'Segoe UI',sans-serif; padding:8px; text-align:center; min-width:150px;">
+            <div style="font-size:14px; font-weight:700; color:{COLORES_CSS[nodo]}; margin-bottom:4px;">
+                {EMOJIS[nodo]} {nodo}
+            </div>
+            <div style="font-size:10px; color:#718096;">
+                Seleccione un año en el panel de capas para ver las estadísticas detalladas.
+            </div>
+        </div>
+        """
+        folium.Marker(
+            location=[coord["lat"], coord["lon"]],
+            tooltip=f"{EMOJIS[nodo]} {nodo}",
+            popup=folium.Popup(popup_simple, max_width=200),
+            icon=folium.Icon(
+                color=COLORES_FOLIUM[nodo],
+                icon=ICONOS_FOLIUM[nodo],
+                prefix='fa'
+            )
+        ).add_to(grupo_base)
+    grupo_base.add_to(mapa)
+
     # FeatureGroup por año
     for anio in ANIOS:
         grupo = folium.FeatureGroup(name=f"📅 Año {anio}", show=(anio == 2026))
